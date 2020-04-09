@@ -11,6 +11,14 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
+void write_query(const Router* start_router, const Router* end_router, std::stringstream* s){
+    *s << "<.> ";
+    *s << "[" + start_router->name() + "]";
+    *s << " .* ";
+    *s << "[" + end_router->name() + "]";
+    *s << " <.>\n";
+}
+
 void create_path(Network& network, std::function<FastRerouting::label_t(void)>& next_label, uint64_t* i){
     int randomDecision = rand()%3;
     std::vector<std::vector<const Router*>> vector;
@@ -51,14 +59,6 @@ void inject_network(Network* synthetic_network, uint64_t* i, std::function<FastR
                 {Query::MPLS, 0, *i - 5},
                 {Query::MPLS, 0, *i});
     }
-}
-
-void write_query(const Router* start_router, const Router* end_router, std::string s){
-    s + "<.> ";
-    s + "[" + start_router->name() + "]";
-    s + " .* ";
-    s + "[" + end_router->name() + "]";
-    s + " <.> \n";
 }
 
 std::vector<const Router*> make_query(Network* network){
@@ -111,7 +111,7 @@ int main(int argc, const char** argv) {
     size_t concat_inject = 0;
     po::options_description test("Test Options");
     size_t number_networks = 1;
-    size_t number_dataflow = 1;
+    size_t number_dataflow = 10;
     test.add_options()
             ("size,s", po::value<size_t>(&size), "size of synthetic network")
             ("mode,m", po::value<size_t>(&concat_inject), "0 = concat and 1 = inject")
@@ -134,16 +134,29 @@ int main(int argc, const char** argv) {
             inject_network(&synthetic_network, &i, next_label, size);
         }
 
-        std::string queries;
+        std::stringstream queries;
         //Write query through whole network
         write_query(synthetic_network.get_router(0),
-                synthetic_network.get_router(synthetic_network.size()-3), queries);
+                synthetic_network.get_router(synthetic_network.size()-2), &queries);
 
         for(size_t f = 0; f < number_dataflow; f++){
-            auto path = make_query(&synthetic_network);
-            FastRerouting::make_data_flow(path[0]->get_null_interface(),
-                    path[path.size() - 1]->get_null_interface(), next_label, path);
-            write_query(path[0], path[path.size() - 1], queries);
+            std::random_device rd; // obtain a random number from hardware
+            std::mt19937 eng(rd()); // seed the generator
+            std::uniform_int_distribution<> distr(0, synthetic_network.size() - 1); // define the range
+            Router* random_router = nullptr;
+            Router* random_end_router = nullptr;
+            while (random_router == nullptr || random_router->is_null()){
+                random_router = synthetic_network.get_router(distr(eng));
+            }
+            while (random_end_router == nullptr || random_end_router->is_null()){
+                random_end_router = synthetic_network.get_router(distr(eng));
+            }
+            write_query(random_router, random_end_router, &queries);
+
+            //TODO Make dataflow for more queries
+            //auto path = make_query(&synthetic_network);
+            //FastRerouting::make_data_flow(path[0]->get_null_interface(),path[path.size() - 1]->get_null_interface(), next_label, path);
+            //write_query(path[0], path[path.size() - 1], &queries);
         }
 
         std::ofstream out_topo(name + "-topo.xml");
@@ -162,7 +175,7 @@ int main(int argc, const char** argv) {
         }
         std::ofstream out_query(name + "-queries.q");
         if (out_query.is_open()) {
-            out_query << queries;
+            out_query << queries.rdbuf();
         } else {
             std::cerr << "Could not open --write-query file for writing" << std::endl;
             exit(-1);
