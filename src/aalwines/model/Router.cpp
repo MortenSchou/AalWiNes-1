@@ -34,12 +34,17 @@
 namespace aalwines
 {
 
-    Router::Router(size_t id, bool is_null) : _index(id), _is_null(is_null)
-    {
-    }
+    Router::Router(size_t id, bool is_null) : _index(id), _is_null(is_null) {}
+    Router::Router(size_t id, Coordinate coordinate) : _index(id), _is_null(false), _coordinate(coordinate) {}
 
     void Router::add_name(const std::string& name)
     {
+        _names.emplace_back(name);
+    }
+
+    void Router::change_name(const std::string& name)
+    {
+        _names.pop_back();
         _names.emplace_back(name);
     }
 
@@ -96,6 +101,19 @@ namespace aalwines
 
     Interface::Interface(size_t id, size_t global_id, Router* target, Router* parent) : _id(id), _global_id(global_id), _target(target), _parent(parent)
     {
+    }
+
+    void Router::remove_interface(Interface* interface){
+        auto lambda = [interface] (std::unique_ptr<aalwines::Interface>& a) { return a.get() == interface; };
+        auto rem = std::remove_if(_interfaces.begin(), _interfaces.end(), lambda);
+        _interfaces.erase(rem, _interfaces.end());
+    }
+
+    void Interface::remove_pairing(Interface* interface){
+        interface->_matching = nullptr;
+        _matching = nullptr;
+        interface->_target = nullptr;
+        _target = nullptr;
     }
 
     void Interface::make_pairing(Interface* interface)
