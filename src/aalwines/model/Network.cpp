@@ -543,4 +543,104 @@ namespace aalwines
         return Network(std::move(mapping), std::move(routers), std::move(interfaces));
     }
 
+    Network Network::construct_synthetic_network(size_t nesting){
+        size_t router_size = 5 * nesting;
+        std::string router_name = "Router";
+        std::vector<std::string> router_names;
+        std::vector<std::unique_ptr<Router> > _routers;
+        std::vector<const Interface*> _all_interfaces;
+        Network::routermap_t _mapping;
+
+        for(size_t i = 0; i < router_size; i++) {
+            router_names.push_back(router_name + std::to_string(i));
+        }
+
+        size_t network_node = 0;
+        bool nested = nesting > 1;
+        bool fall_through = false;
+        size_t last_nesting_begin = nesting * 5 - 5;
+
+        std::vector<std::vector<std::string>> links;
+
+        for(size_t i = 0; i < router_size; i++, network_node++) {
+            router_name = router_names[i];
+            _routers.emplace_back(std::make_unique<Router>(i));
+            Router &router = *_routers.back().get();
+            router.add_name(router_name);
+            router.get_interface(_all_interfaces, "i" + router_names[i]);
+            auto res = _mapping.insert(router_name.c_str(), router_name.length());
+            _mapping.get_data(res.second) = &router;
+            switch (network_node) {
+                case 1:
+                    router.get_interface(_all_interfaces, router_names[i - 1]);
+                    router.get_interface(_all_interfaces, router_names[i + 2]);
+                    links.push_back({router_names[i - 1], router_names[i + 2]} );
+                    break;
+                case 2:
+                    router.get_interface(_all_interfaces, router_names[i + 1]);
+                    router.get_interface(_all_interfaces, router_names[i + 2]);
+                    links.push_back({router_names[i + 1], router_names[i + 2]});
+                    if(nested){
+                        router.get_interface(_all_interfaces, router_names[i + 6]);
+                        links.back().push_back({router_names[i + 6]});
+                    } else {
+                        router.get_interface(_all_interfaces, router_names[i - 2]);
+                        links.back().push_back({router_names[i - 2]});
+                    }
+                    break;
+                case 3:
+                    router.get_interface(_all_interfaces, router_names[i - 2]);
+                    router.get_interface(_all_interfaces, router_names[i + 1]);
+                    router.get_interface(_all_interfaces, router_names[i - 1]);
+                    links.push_back({router_names[i - 2], router_names[i + 1], router_names[i - 1]});
+                    if(i != 3) {
+                        router.get_interface(_all_interfaces, router_names[i - 6]);
+                        links.back().push_back({router_names[i - 6]});
+                    }
+                    break;
+                case 4:
+                    router.get_interface(_all_interfaces, router_names[i - 2]);
+                    router.get_interface(_all_interfaces, router_names[i - 1]);
+                    links.push_back({router_names[i - 2], router_names[i - 1]});
+                    break;
+                case 5:
+                    network_node = 0;   //Fall through
+                    if(i == last_nesting_begin){
+                        nested = false;
+                    }
+                    fall_through = true;
+                case 0:
+                    router.get_interface(_all_interfaces, router_names[i + 1]);
+                    links.push_back({router_names[i + 1]});
+                    if(nested){
+                        router.get_interface(_all_interfaces, router_names[i + 5]);
+                        links.back().push_back({router_names[i + 5]});
+                    } else {
+                        router.get_interface(_all_interfaces, router_names[i + 2]);
+                        links.back().push_back({router_names[i + 2]});
+                    }
+                    if(fall_through){
+                        router.get_interface(_all_interfaces, router_names[i - 5]);
+                        links.back().push_back({router_names[i - 5]});
+                        fall_through = false;
+                    }
+                    break;
+                default:
+                    throw base_error("Something went wrong in the construction");
+            }
+        }
+        for (size_t i = 0; i < router_size; ++i) {
+            for (const auto &other : links[i]) {
+                auto res1 = _mapping.exists(router_names[i].c_str(), router_names[i].length());
+                assert(res1.first);
+                auto res2 = _mapping.exists(other.c_str(), other.length());
+                if(!res2.first) continue;
+                _mapping.get_data(res1.second)->find_interface(other)->make_pairing(_mapping.get_data(res2.second)->find_interface(router_names[i]));
+            }
+        }
+        Router::add_null_router(_routers, _all_interfaces, _mapping); //Last router
+        return Network(std::move(_mapping), std::move(_routers), std::move(_all_interfaces));
+    }
+
+
 }

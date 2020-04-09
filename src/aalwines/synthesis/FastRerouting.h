@@ -31,9 +31,10 @@
 
 namespace aalwines {
     class FastRerouting {
-        using label_t = RoutingTable::label_t;
+
 
     public:
+        using label_t = RoutingTable::label_t;
         static bool make_reroute(const Interface* failed_inf, const std::function<label_t(void)>& next_label,
                 const std::function<uint32_t(const Interface*)>& cost_fn = [](const Interface* interface){return 1;});
 

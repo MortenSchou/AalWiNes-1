@@ -598,7 +598,7 @@ BOOST_AUTO_TEST_CASE(FastRerouteWithQueryTest) {
     auto success = FastRerouting::make_data_flow(
             network.get_router(0)->find_interface("iRouter0"),
             network.get_router(4)->find_interface("iRouter4"),
-            [&i](){return Query::label_t(Query::type_t::MPLS, 0, i++);}, path);
+            next_label, path);
     BOOST_CHECK_EQUAL(success, true);
 
     auto fail_interface = network.get_router(3)->find_interface(network.get_router(4)->name());

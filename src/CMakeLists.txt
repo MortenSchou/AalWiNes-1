@@ -27,10 +27,13 @@ add_executable(aalwines-bin main.cpp)
 target_link_libraries(aalwines-bin PRIVATE aalwines)
 set_target_properties(aalwines-bin PROPERTIES OUTPUT_NAME aalwines)
 
+add_executable(aalwines-test performance_test_main.cpp)
+target_link_libraries(aalwines-test PRIVATE aalwines)
+
 add_executable(zoo-routing topology_zoo_main.cpp)
 target_link_libraries(zoo-routing PRIVATE aalwines)
 
-install(TARGETS aalwines aalwines-bin zoo-routing
+install(TARGETS aalwines aalwines-bin aalwines-test zoo-routing
 		RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)

@@ -76,7 +76,7 @@ public:
     void update_global_id(size_t global_id) {
         _global_id = global_id;
     }
-    
+
     void remove_pairing(Interface* interface);
     void make_pairing(Interface* interface);
     void make_pairing(std::vector<const Interface*>& all_interfaces, std::function<bool(const Interface*, const Interface*)> matcher);
@@ -96,6 +96,7 @@ public:
     Router(size_t id, Coordinate coordinate);
     Router(const Router& orig) = default;
     virtual ~Router() = default;
+    bool operator<(const Router& rhs) { return this->index() < rhs.index(); }
 
     [[nodiscard]] size_t index() const {
         return _index;
@@ -108,10 +109,14 @@ public:
         return _is_null;
     }
 
-    Interface* get_null_interface() {
+    Interface* get_null_interface() const {
         for(auto& inf : _interfaces){
             if(inf->target()->is_null()){
-                return inf.get();
+                if(inf->target()->is_null()){
+                    return inf.get();
+                } else {
+                    throw("Target is not null");
+                }
             }
         }
     }
