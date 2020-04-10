@@ -96,7 +96,6 @@ public:
     Router(size_t id, Coordinate coordinate);
     Router(const Router& orig) = default;
     virtual ~Router() = default;
-    bool operator<(const Router& rhs) { return this->index() < rhs.index(); }
 
     [[nodiscard]] size_t index() const {
         return _index;

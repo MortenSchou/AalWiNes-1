@@ -75,7 +75,10 @@ std::pair<Router*,Router*> make_query(Network* network) {
     do {
         random_end_router = network->get_router(distr(eng));
     } while (random_end_router->is_null() || random_end_router->get_null_interface() == nullptr);
-    return std::make_pair(std::min(random_router, random_end_router), std::max(random_router, random_end_router));
+    if(random_router->index() < random_end_router->index()){
+        return std::make_pair(random_router, random_end_router);
+    }
+    return std::make_pair(random_end_router, random_router);
 }
 
 std::vector<const Router*> make_flow_concat(Network* network, std::pair<Router*,Router*> router_pair){
