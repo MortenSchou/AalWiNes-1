@@ -111,14 +111,11 @@ public:
 
     Interface* get_null_interface() const {
         for(auto& inf : _interfaces){
-            if(inf->target()->is_null()){
-                if(inf->target()->is_null()){
-                    return inf.get();
-                } else {
-                    throw("Target is not null");
-                }
+            if(inf->target()->is_null()) {
+                return inf.get();
             }
         }
+        return nullptr;
     }
     
     void add_name(const std::string& name);

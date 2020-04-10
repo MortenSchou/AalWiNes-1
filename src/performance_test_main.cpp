@@ -66,26 +66,23 @@ std::vector<const Router*> make_query(Network* network){
     std::mt19937 eng(rd()); // seed the generator
     std::uniform_int_distribution<> distr(0, network->size() - 1); // define the range
     std::vector<const Router*> path;
-    size_t nest_link_router;
-    Router* random_router = nullptr;
-    Router* random_end_router = nullptr;
-    while (random_router == nullptr || random_router->is_null()){
+    Router* random_router;
+    Router* random_end_router;
+    do {
         random_router = network->get_router(distr(eng));
-    }
-    while (random_end_router == nullptr || random_end_router->is_null()){
+    } while (random_router->is_null() || random_router->get_null_interface() == nullptr);
+    do{
         random_end_router = network->get_router(distr(eng));
-    }
+    } while (random_end_router->is_null() || random_end_router->get_null_interface() == nullptr);
+
     Router* end_router = std::max(random_router, random_end_router);
     path.emplace_back(std::min(random_router, random_end_router));
-
-    while (path[0]->index() > nest_link_router){
-        nest_link_router += 5;  //Network size
-    }
 
     while(path.back() != end_router){
         bool go_nest = false;
         std::string end_router_interface_name = "";
-        if(nest_link_router < end_router->index()){
+        //TODO: Make pretty, get nesting of router.
+        if(floor((path.back()->index()-1) / 5) < floor((end_router->index()-1) / 5)){
             end_router_interface_name = "Router3";
             go_nest = true;
         } else {
@@ -97,10 +94,15 @@ std::vector<const Router*> make_query(Network* network){
             if(go_nest) {
                 inf = const_cast<Router*>(path.back())->find_interface("iRouter3");
                 path.emplace_back(inf->target());
-                nest_link_router += 5;
             }
         } else {
-            path.emplace_back(path.back()->interfaces()[1]->target());
+            std::uniform_int_distribution<> distr(1, path.back()->interfaces().size() - 1);
+            Router* router;
+            do{
+                router = path.back()->interfaces()[distr(eng)]->target();
+            }
+            while(router->is_null());
+            path.emplace_back(router);
         }
     }
     return path;
@@ -111,7 +113,7 @@ int main(int argc, const char** argv) {
     size_t concat_inject = 0;
     po::options_description test("Test Options");
     size_t number_networks = 1;
-    size_t number_dataflow = 10;
+    size_t number_dataflow = 0;
     test.add_options()
             ("size,s", po::value<size_t>(&size), "size of synthetic network")
             ("mode,m", po::value<size_t>(&concat_inject), "0 = concat and 1 = inject")
@@ -140,23 +142,9 @@ int main(int argc, const char** argv) {
                 synthetic_network.get_router(synthetic_network.size()-2), &queries);
 
         for(size_t f = 0; f < number_dataflow; f++){
-            std::random_device rd; // obtain a random number from hardware
-            std::mt19937 eng(rd()); // seed the generator
-            std::uniform_int_distribution<> distr(0, synthetic_network.size() - 1); // define the range
-            Router* random_router = nullptr;
-            Router* random_end_router = nullptr;
-            while (random_router == nullptr || random_router->is_null()){
-                random_router = synthetic_network.get_router(distr(eng));
-            }
-            while (random_end_router == nullptr || random_end_router->is_null()){
-                random_end_router = synthetic_network.get_router(distr(eng));
-            }
-            write_query(random_router, random_end_router, &queries);
-
-            //TODO Make dataflow for more queries
-            //auto path = make_query(&synthetic_network);
-            //FastRerouting::make_data_flow(path[0]->get_null_interface(),path[path.size() - 1]->get_null_interface(), next_label, path);
-            //write_query(path[0], path[path.size() - 1], &queries);
+            auto path = make_query(&synthetic_network);
+            FastRerouting::make_data_flow(path[0]->get_null_interface(),path[path.size() - 1]->get_null_interface(), next_label, path);
+            write_query(path[0], path[path.size() - 1], &queries);
         }
 
         std::ofstream out_topo(name + "-topo.xml");
