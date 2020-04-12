@@ -216,7 +216,15 @@ namespace aalwines
             // Find unique name for router
             std::string name = e->name();
             while(_mapping.exists(name.c_str(), name.length()).first){
-                name += "'";
+                if(name.back() == '\'' || name[name.size() - 2] == '\''){
+                    if(name.back() == '\''){
+                        name += "1";
+                    } else {
+                        name.back()++;
+                    }
+                } else {
+                    name += "'";
+                }
             }
             e->change_name(name);
 

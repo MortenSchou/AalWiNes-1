@@ -21,46 +21,14 @@ void write_query(const Router* start_router, const Router* end_router, std::stri
     *s << " <.> 0 DUAL\n";
 }
 
-void create_path(Network& network, std::function<FastRerouting::label_t(void)>& next_label, uint64_t* i){
-    int randomDecision = rand()%3;
-    std::vector<std::vector<const Router*>> vector;
-    vector.push_back({network.get_router(0), network.get_router(1),
-                         network.get_router(3), network.get_router(4),
-                         network.get_router(2), network.get_router(3)});
-    vector.push_back({network.get_router(0), network.get_router(1),
-                         network.get_router(3)});
-    vector.push_back({network.get_router(0), network.get_router(2),
-                         network.get_router(4), network.get_router(3)});
-    FastRerouting::make_data_flow(network.get_router(0)->find_interface("iRouter0"),
-                                  network.get_router(3)->find_interface("iRouter3"),
-                                  next_label, vector[randomDecision]);
-}
-
-void concat_network(Network* synthetic_network, uint64_t* i, std::function<FastRerouting::label_t(void)>& next_label, size_t size){
-    *i = *i - 1;
-    for(size_t n = 0; n < size; n++, *i = *i - 1){
-        Network synthetic_network_concat = Network::construct_synthetic_network();
-        create_path(synthetic_network_concat, next_label, i);
-        synthetic_network->concat_network(synthetic_network->get_router(n == 0 ? 3 : (3 + 1 + (5 * n)))->find_interface("iRouter3"),
-                                         std::move(synthetic_network_concat),
-                                         synthetic_network_concat.get_router(0)->find_interface("iRouter0"),
-                                         {Query::MPLS, 0, *i});
-    }
-}
-
-void inject_network(Network* synthetic_network, uint64_t* i, std::function<FastRerouting::label_t(void)>& next_label, size_t size){
-    for(size_t n = 1; n <= size; n++) {
-        Network synthetic_network_inject = Network::construct_synthetic_network();
-        create_path(synthetic_network_inject, next_label, i);
-        size_t network_index = n == 1? 0 : n * 5 - 4;
-        synthetic_network->inject_network(
-                synthetic_network->get_router(0 + network_index)->find_interface("Router2"),
-                std::move(synthetic_network_inject),
-                synthetic_network_inject.get_router(0)->find_interface("iRouter0"),
-                synthetic_network_inject.get_router(3)->find_interface("iRouter3"),
-                {Query::MPLS, 0, *i - 5},
-                {Query::MPLS, 0, *i});
-    }
+void write_query_through(const Router* start_router, const Router* through_router, const Router* end_router, std::stringstream* s){
+    *s << "<.> ";
+    *s << "[.#" + start_router->name() + "]";
+    *s << " .* ";
+    *s << "[.#" + through_router->name() + "]";
+    *s << " .* ";
+    *s << "[" + end_router->name() + "#.]";
+    *s << " <.> 0 DUAL\n";
 }
 
 std::pair<Router*,Router*> make_query(Network* network) {
@@ -80,6 +48,82 @@ std::pair<Router*,Router*> make_query(Network* network) {
     }
     return std::make_pair(random_end_router, random_router);
 }
+
+void create_path(Network& network, std::function<FastRerouting::label_t(void)>& next_label, uint64_t* i){
+    /*Dynamic flow
+    std::vector<std::vector<const Router*>> vector;
+    vector.push_back({network.get_router(0), network.get_router(1),
+                         network.get_router(3), network.get_router(4),
+                         network.get_router(2), network.get_router(3)});
+    vector.push_back({network.get_router(0), network.get_router(1),
+                         network.get_router(3)});
+    vector.push_back({network.get_router(0), network.get_router(2), network.get_router(3)});
+    vector.push_back({network.get_router(0), network.get_router(2),
+                         network.get_router(4), network.get_router(3)});
+     * int randomDecision = rand()%3;
+     * FastRerouting::make_data_flow(network.get_router(0)->find_interface("iRouter0"),
+                                  network.get_router(3)->find_interface("iRouter3"),
+                                  next_label, vector[randomDecision]);
+                                  */
+    //Static flow for testing
+    FastRerouting::make_data_flow(network.get_router(0)->find_interface("iRouter0"),
+                                  network.get_router(3)->find_interface("iRouter3"),
+                                  next_label, {network.get_router(0), network.get_router(2), network.get_router(3)});
+}
+
+void concat_network(Network* synthetic_network, uint64_t* i, std::function<FastRerouting::label_t(void)>& next_label, size_t size){
+    *i = *i - 1;
+    for(size_t n = 0; n < size; n++, *i = *i - 1){
+        Network synthetic_network_concat = Network::construct_synthetic_network();
+        create_path(synthetic_network_concat, next_label, i);
+        synthetic_network->concat_network(synthetic_network->get_router(n == 0 ? 3 : (3 + 1 + (5 * n)))->find_interface("iRouter3"),
+                                         std::move(synthetic_network_concat),
+                                         synthetic_network_concat.get_router(0)->find_interface("iRouter0"),
+                                         {Query::MPLS, 0, *i});
+    }
+}
+
+Router* inject_network(Network* synthetic_network, uint64_t* i, std::function<FastRerouting::label_t(void)>& next_label, size_t size, size_t data_flow){
+    Router* return_router;
+    std::random_device rd; // obtain a random number from hardware
+    std::mt19937 eng(rd()); // seed the generator
+    for(size_t n = 1; n <= size; n++) {
+        Network synthetic_network_inject = Network::construct_synthetic_network();
+        return_router = synthetic_network_inject.get_router(2);
+        /*
+        for(size_t j = 0; j < data_flow; j++){
+            auto routers = make_query(&synthetic_network_inject);
+            std::vector<const Router*> path {routers.first};
+            //Find path for routers
+            while(path.back() != routers.second){
+                if(Interface* inf = const_cast<Router*>(path.back())->find_interface(routers.second->name())){
+                    path.emplace_back(inf->target());
+                } else {
+                    std::uniform_int_distribution<> distr(1, path.back()->interfaces().size() - 1);
+                    Router* router;
+                    do{
+                        router = path.back()->interfaces()[distr(eng)]->target();
+                    }
+                    while(router->is_null());
+                    path.emplace_back(router);
+                }
+            }
+            FastRerouting::make_data_flow(synthetic_network_inject.get_router(0)->find_interface("iRouter0"),
+                                          synthetic_network_inject.get_router(3)->find_interface("iRouter3"),
+                                          next_label, path);
+        }*/
+        create_path(synthetic_network_inject, next_label, i);
+        synthetic_network->inject_network(
+                synthetic_network->get_router(n == 1? 0 : n * 5 - 4)->find_interface("Router2"),
+                std::move(synthetic_network_inject),
+                synthetic_network_inject.get_router(0)->find_interface("iRouter0"),
+                synthetic_network_inject.get_router(3)->find_interface("iRouter3"),
+                {Query::MPLS, 0, *i - 4},
+                {Query::MPLS, 0, *i - 1});
+    }
+    return return_router;
+}
+
 
 std::vector<const Router*> make_flow_concat(Network* network, std::pair<Router*,Router*> router_pair){
     std::random_device rd; // obtain a random number from hardware
@@ -158,19 +202,15 @@ int main(int argc, const char** argv) {
                 auto router_pair = make_query(&synthetic_network);
                 auto path = make_flow_concat(&synthetic_network, router_pair);
                 FastRerouting::make_data_flow(path[0]->get_null_interface(),path[path.size() - 1]->get_null_interface(), next_label, path);
-                write_query(path[0], path[path.size() - 1], &queries);
+                //TODO if more queries -> write_query(path[0], path[path.size() - 1], &queries);
             }
+            //Write query through whole network
+            write_query(synthetic_network.get_router(0),
+                        synthetic_network.get_router(synthetic_network.size()-2), &queries);
         } else {
-            inject_network(&synthetic_network, &i, next_label, size);
-            for(size_t f = 0; f < number_dataflow; f++) {
-                auto router_pair = make_query(&synthetic_network);
-                write_query(router_pair.first, router_pair.second, &queries);
-            }
+            Router* inner_router = inject_network(&synthetic_network, &i, next_label, size, number_dataflow);
+            write_query_through(synthetic_network.get_router(0), inner_router, synthetic_network.get_router(3), &queries);
         }
-
-        //Write query through whole network
-        write_query(synthetic_network.get_router(0),
-                synthetic_network.get_router(synthetic_network.size()-2), &queries);
 
         std::ofstream out_topo(name + "-topo.xml");
         if (out_topo.is_open()) {
