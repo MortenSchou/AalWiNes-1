@@ -361,7 +361,7 @@ int main(int argc, const char** argv)
             {
                 std::cout << ",\n\t\t\"compilation-time\":" << (compilation_time.duration())
                           << ",\n\t\t\"reduction-time\":" << (reduction_time.duration())
-                         << ",\n\t\t\"verification-time\":" << (verification_time.duration());
+                         << ",\n\t\t\"verification-time\":" << (engine != 1 ? verification_time.duration() : moped.verification_duration());
             }
             std::cout << "\n\t}";
             if(query_no != builder._result.size())
