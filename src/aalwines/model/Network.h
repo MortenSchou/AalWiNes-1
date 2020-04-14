@@ -68,8 +68,8 @@ public:
     const std::vector<std::unique_ptr<Router>>& get_all_routers() const { return _routers; }
 
     void inject_network(const std::vector<Interface*>& links, Network&& nested_network, const std::vector<data_flow>& flows);
-    void concat_network(const std::vector<std::pair<Interface*, RoutingTable::label_t>>& end_links,
-            Network&& other_network, const std::vector<std::pair<Interface*, RoutingTable::label_t>>& start_links);
+    void concat_network(const std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>>& end_links,
+            Network&& other_network, const std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>>& start_links);
     void concat_network(const std::vector<Interface*>& end_links, Network&& other_network, const std::vector<Interface*>& start_links);
     void inject_network(Interface* link, Network&& nested_network, Interface* nested_ingoing,
                         Interface* nested_outgoing, RoutingTable::label_t pre_label, RoutingTable::label_t post_label);

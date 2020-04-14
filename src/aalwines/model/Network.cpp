@@ -275,16 +275,16 @@ namespace aalwines
         }
 
     }
-    void Network::concat_network(const std::vector<std::pair<Interface*, RoutingTable::label_t>>& end_links,
-            Network&& other_network, const std::vector<std::pair<Interface*, RoutingTable::label_t>>& start_links) {
+    void Network::concat_network(const std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>>& end_links,
+            Network&& other_network, const std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>>& start_links) {
         assert(end_links.size() == start_links.size());
         assert(this->size());
         assert(other_network.size());
-        for (auto&& [l,t]: end_links) {
-            assert(l->target()->is_null());
+        for (auto&& [inf,labels]: end_links) {
+            assert(inf->target()->is_null());
         }
-        for (auto&& [l,t]: start_links) {
-            assert(l->target()->is_null());
+        for (auto&& [inf,labels]: start_links) {
+            assert(inf->target()->is_null());
         }
 
         move_network(std::move(other_network));
@@ -294,7 +294,10 @@ namespace aalwines
             end_links[i].first->make_pairing(start_links[i].first);
 
             // Make routing tables work together.
-            start_links[i].first->table().change_top_label(start_links[i].second, end_links[i].second);
+            auto concat_labels = std::min(end_links[i].second.size(), start_links[i].second.size());
+            for (size_t j = 0; j < concat_labels; ++j) {
+                start_links[i].first->table().change_top_label(start_links[i].second[j], end_links[i].second[j]);
+            }
         }
     }
     void Network::concat_network(const std::vector<Interface*>& end_links, Network&& other_network, const std::vector<Interface*>& start_links) {
