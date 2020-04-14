@@ -270,11 +270,11 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace) {
 
     Builder builder(synthetic_network);
     {
-        std::string query("<.*> [.#Router0] .* [Router2'#.] <.*> 0 OVER \n"
+        std::string query("<.*> [.#Router0] .* [Router2'1#.] <.*> 0 OVER \n"
                           "<.*> [.#Router0] .* [Router5#.] <.*> 0 OVER \n"
                           "<.*> [.#Router0] .* [Router7#.] <.*> 0 OVER \n"
                           "<.*> [.#Router0] .* [Router9#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router0'#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router0'1#.] <.*> 0 OVER \n"
         );
         build_query(query, synthetic_network, builder);
     }
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace1) {
     BOOST_CHECK_EQUAL(success, success1);
 
     std::stringstream s_before;
-    synthetic_network2.print_simple(s_before);
+    synthetic_network2.print_dot_undirected(s_before);
     BOOST_TEST_MESSAGE(s_before.str());
 
     synthetic_network.inject_network(
@@ -324,9 +324,9 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace1) {
 
     Builder builder(synthetic_network);
     {
-        std::string query("<.*> [.#Router0] .* [Router2'#.] <.*> 0 OVER \n"
+        std::string query("<.*> [.#Router0] .* [Router2'1#.] <.*> 0 OVER \n"
                           "<.*> [.#Router0] .* [Router2#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router0'#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router0'1#.] <.*> 0 OVER \n"
         );
         build_query(query, synthetic_network, builder);
     }
@@ -380,8 +380,8 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace2) {
     Builder builder(synthetic_network);
     {
         std::string query("<.*> [.#Router0] .* [Router24#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router2'#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router0'#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router2'1#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router0'1#.] <.*> 0 OVER \n"
         );
         build_query(query, synthetic_network, builder);
     }
@@ -430,9 +430,9 @@ BOOST_AUTO_TEST_CASE(NetworkConcatenationAndTrace) {
 
     Builder builder(synthetic_network);
     {
-        std::string query("<.*> [.#Router0] .* [Router3'#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router2'#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router0'#.] <.*> 0 OVER \n"
+        std::string query("<.*> [.#Router0] .* [Router3'1#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router2'1#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router0'1#.] <.*> 0 OVER \n"
         );
         build_query(query, synthetic_network, builder);
     }
@@ -477,9 +477,9 @@ BOOST_AUTO_TEST_CASE(NetworkConcatenationAndTrace1) {
 
     Builder builder(synthetic_network);
     {
-        std::string query("<.*> [.#Router0] .* [Router3'#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router2'#.] <.*> 0 OVER \n"
-                          "<.*> [.#Router0] .* [Router0'#.] <.*> 0 OVER \n"
+        std::string query("<.*> [.#Router0] .* [Router3'1#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router2'1#.] <.*> 0 OVER \n"
+                          "<.*> [.#Router0] .* [Router0'1#.] <.*> 0 OVER \n"
         );
         build_query(query, synthetic_network, builder);
     }
