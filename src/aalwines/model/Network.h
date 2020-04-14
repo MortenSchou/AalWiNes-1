@@ -39,6 +39,19 @@
 namespace aalwines {
 class Network {
 public:
+    struct data_flow {
+        Interface* ingoing;
+        Interface* outgoing;
+        RoutingTable::label_t pre_label;
+        RoutingTable::label_t post_label;
+        data_flow(Interface* ingoing, Interface* outgoing, RoutingTable::label_t pre_label, RoutingTable::label_t post_label)
+                : ingoing(ingoing), outgoing(outgoing), pre_label(pre_label), post_label(post_label) {
+            assert(ingoing->target()->is_null());
+            assert(outgoing->target()->is_null());
+        }
+    };
+
+public:
     using routermap_t = ptrie::map<char, Router*>;
     Network(routermap_t&& mapping, std::vector<std::unique_ptr < Router>>&& routers, std::vector<const Interface*>&& all_interfaces);
     Network(const Network&) = default;
@@ -49,9 +62,11 @@ public:
     Router *get_router(size_t id);
     const std::vector<std::unique_ptr<Router>>& get_all_routers() const { return _routers; }
 
+    void inject_network(const std::vector<Interface*>& links, Network&& nested_network, const std::vector<data_flow>& flows);
+    void concat_network(const std::vector<Interface*>& end_links, Network&& other_network, const std::vector<Interface*>& start_links);
     void inject_network(Interface* link, Network&& nested_network, Interface* nested_ingoing,
-            Interface* nested_outgoing, RoutingTable::label_t pre_label, RoutingTable::label_t post_label);
-    void concat_network(Interface *link, Network &&nested_network, Interface *nested_ingoing, RoutingTable::label_t post_label);
+                        Interface* nested_outgoing, RoutingTable::label_t pre_label, RoutingTable::label_t post_label);
+    void concat_network(Interface* end_link, Network&& other_network, Interface* start_link, RoutingTable::label_t unused);
     size_t size() const { return _routers.size(); }
     const routermap_t& get_mapping() const { return _mapping; }
     int get_max_label() const { return _max_label; }

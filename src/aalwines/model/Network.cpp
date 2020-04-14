@@ -242,42 +242,67 @@ namespace aalwines
         }
     }
 
-    void Network::inject_network(Interface* link, Network&& nested_network, Interface* nested_ingoing,
-            Interface* nested_outgoing, RoutingTable::label_t pre_label, RoutingTable::label_t post_label) {
-        assert(nested_ingoing->target()->is_null());
-        assert(nested_outgoing->target()->is_null());
+    void Network::inject_network(const std::vector<Interface*>& links, Network&& nested_network, const std::vector<data_flow>& flows) {
         assert(this->size());
         assert(nested_network.size());
+        assert(links.size() == flows.size());
 
-        // Pair interfaces for injection and create virtual interface to filter post_label before POP.
-        auto link_end = link->match();
-        link->make_pairing(nested_ingoing);
-        auto virtual_guard = nested_outgoing->source()->get_interface(_all_interfaces, "__virtual_guard__"); // Assumes these names are unique for this router.
-        auto nested_end_link = nested_outgoing->source()->get_interface(_all_interfaces, "__end_link__");
-        nested_outgoing->make_pairing(virtual_guard);
-        link_end->make_pairing(nested_end_link);
-
-        move_network(std::move(nested_network));
-
-        // Add push and pop rules.
-        for (auto&& interface : link->source()->interfaces()) {
-            interface->table().add_to_outgoing(link,
-                    {RoutingTable::op_t::PUSH, pre_label});
+        for (size_t i = 0; i < links.size(); ++i) {
+            auto link = links[i];
+            auto flow = flows[i];
+            // Pair interfaces for injection and create virtual interface to filter post_label before POP.
+            auto link_end = link->match();
+            link->make_pairing(flow.ingoing);
+            auto virtual_guard = flow.outgoing->source()->get_interface(_all_interfaces, "__virtual_guard__"); // Assumes these names are unique for this router.
+            auto nested_end_link = flow.outgoing->source()->get_interface(_all_interfaces, "__end_link__");
+            flow.outgoing->make_pairing(virtual_guard);
+            link_end->make_pairing(nested_end_link);
         }
-        virtual_guard->table().add_rule(post_label, {RoutingTable::op_t::POP, RoutingTable::label_t{}}, nested_end_link);
-    }
-
-    void Network::concat_network(Interface* link, Network&& nested_network, Interface* nested_ingoing, RoutingTable::label_t post_label) {
-        assert(nested_ingoing->target()->is_null());
-        assert(link->target()->is_null());
-        assert(this->size());
-        assert(nested_network.size());
 
         move_network(std::move(nested_network));
 
-        // Pair interfaces for concatenation.
-        link->make_pairing(nested_ingoing);
+        for (size_t i = 0; i < links.size(); ++i) {
+            auto link = links[i];
+            auto flow = flows[i];
+            // Add push and pop rules.
+            for (auto&& interface : link->source()->interfaces()) {
+                interface->table().add_to_outgoing(link,
+                                                   {RoutingTable::op_t::PUSH, flow.pre_label});
+            }
+            auto virtual_guard = flow.outgoing->source()->find_interface("__virtual_guard__");
+            auto nested_end_link = flow.outgoing->source()->find_interface("__end_link__");
+            virtual_guard->table().add_rule(flow.post_label, {RoutingTable::op_t::POP, RoutingTable::label_t{}}, nested_end_link);
+        }
+
     }
+    void Network::concat_network(const std::vector<Interface*>& end_links, Network&& other_network, const std::vector<Interface*>& start_links) {
+        assert(end_links.size() == start_links.size());
+        assert(this->size());
+        assert(other_network.size());
+        for (auto&& l: end_links) {
+            assert(l->target()->is_null());
+        }
+        for (auto&& l: start_links) {
+            assert(l->target()->is_null());
+        }
+
+        move_network(std::move(other_network));
+
+        for (size_t i = 0; i < end_links.size(); ++i) {
+            // Pair interfaces for concatenation.
+            end_links[i]->make_pairing(start_links[i]);
+        }
+    }
+
+    // Temporatily kept for compatibility with old code.
+    void Network::inject_network(Interface* link, Network&& nested_network, Interface* nested_ingoing,
+                                 Interface* nested_outgoing, RoutingTable::label_t pre_label, RoutingTable::label_t post_label) {
+        inject_network(std::vector{link}, std::move(nested_network), std::vector{data_flow(nested_ingoing, nested_outgoing, pre_label, post_label)});
+    }
+    void Network::concat_network(Interface* end_link, Network&& other_network, Interface* start_link, RoutingTable::label_t unused) {
+        concat_network(std::vector{end_link}, std::move(other_network), std::vector{start_link});
+    }
+
 
     void Network::print_dot(std::ostream& s)
     {
