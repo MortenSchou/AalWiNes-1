@@ -33,7 +33,11 @@
 /build/
 .idea/
 cmake-build-debug/
+cmake-build-debug-wsl/
 cmake-build-release/
+cmake-build-release-wsl/
+cmake-build-release-wsl/
+cmake-build-relwithdebinfo/
 src/aalwines/query/*.cc
 src/aalwines/query/*.hh
 

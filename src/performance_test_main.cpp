@@ -13,52 +13,22 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
-void write_query(const Router* start_router, const Router* end_router, std::stringstream* s){
+void write_query_through(const Router* start_router, const Interface* through_interface, const Router* end_router, const size_t failover, std::stringstream* s){
     *s << "<.> ";
     *s << "[.#" + start_router->name() + "]";
     *s << " .* ";
-    *s << "[" + end_router->name() + "#.]";
-    *s << " <.> 0 DUAL\n";
-}
-
-void write_query_through(const Router* start_router, const Router* through_router, const Router* end_router, std::stringstream* s){
-    *s << "<.> ";
-    *s << "[.#" + start_router->name() + "]";
-    *s << " .* ";
-    *s << "[.#" + through_router->name() + "]";
+    *s << "[" + through_interface->source()->name() + "#" + through_interface->target()->name() + "]";
     *s << " .* ";
     *s << "[" + end_router->name() + "#.]";
-    *s << " <.> 0 DUAL\n";
+    *s << " <.> " << failover << " DUAL\n";
 }
 
-void create_path(Network& network, std::function<FastRerouting::label_t(void)>& next_label, uint64_t* i){
-    /*Dynamic flow
-    std::vector<std::vector<const Router*>> vector;
-    vector.push_back({network.get_router(0), network.get_router(1),
-                         network.get_router(3), network.get_router(4),
-                         network.get_router(2), network.get_router(3)});
-    vector.push_back({network.get_router(0), network.get_router(1),
-                         network.get_router(3)});
-    vector.push_back({network.get_router(0), network.get_router(2), network.get_router(3)});
-    vector.push_back({network.get_router(0), network.get_router(2),
-                         network.get_router(4), network.get_router(3)});
-     * int randomDecision = rand()%3;
-     * FastRerouting::make_data_flow(network.get_router(0)->find_interface("iRouter0"),
-                                  network.get_router(3)->find_interface("iRouter3"),
-                                  next_label, vector[randomDecision]);
-                                  */
-    //Static flow for testing
-    FastRerouting::make_data_flow(network.get_router(0)->find_interface("iRouter0"),
-                                  network.get_router(3)->find_interface("iRouter3"),
-                                  next_label, {network.get_router(0), network.get_router(2), network.get_router(3)});
-}
-
-void create_flow(Network& network, const std::function<FastRerouting::label_t(void)>& next_label) {
+void create_flow(Network &pNetwork, std::function<FastRerouting::label_t(void)> function) {
     Interface* pre_router_inf = nullptr;
-    for(auto& r : network.get_all_routers()){
+    for(auto& r : pNetwork.get_all_routers()){
         if(auto inf = r->get_null_interface()){
             if(pre_router_inf){
-                FastRerouting::make_data_flow(pre_router_inf, inf, next_label);
+                FastRerouting::make_data_flow(pre_router_inf, inf, function);
             }
             pre_router_inf = inf;
         } else {
@@ -66,8 +36,6 @@ void create_flow(Network& network, const std::function<FastRerouting::label_t(vo
         }
     }
 }
-
-
 
 struct synt_net {
     Network network;
@@ -134,7 +102,7 @@ synt_net make_base(
                     middle_interface, concat_flow_starts, concat_flow_ends};
 }
 
-synt_net construct_C3I2(size_t concat, size_t inject, uint64_t *pInt,
+synt_net construct_base(size_t concat, size_t inject,
                         const std::function<FastRerouting::label_t(void)>& next_label,
                         const std::function<FastRerouting::label_t(void)>& cur_label,
                         const std::function<FastRerouting::label_t(void)>& peek_label) {
@@ -165,6 +133,7 @@ int main(int argc, const char** argv) {
     size_t base_concat = 1;
     size_t base_inject = 1;
     size_t base_repeat = 1;
+    size_t failover_query = 0;
     po::options_description generate("Test Options");
     generate.add_options()
             ("size,s", po::value<size_t>(&size), "size of synthetic network")
@@ -174,6 +143,7 @@ int main(int argc, const char** argv) {
             ("inject,i", po::value<size_t>(&base_inject), "amount of injected networks in base")
             ("concat,c", po::value<size_t>(&base_concat), "amount of concatenated networks in base")
             ("reputation,r", po::value<size_t>(&base_repeat), "amount of base network reputations")
+            ("failover,k", po::value<size_t>(&failover_query), "failover paths")
             ;
     opts.add(generate);
     po::variables_map vm;
@@ -181,7 +151,7 @@ int main(int argc, const char** argv) {
     po::notify(vm);
 
     std::string name =
-            "Network_C" + std::to_string(base_concat) + "_I" + std::to_string(base_inject) + "_R" + std::to_string(base_repeat);
+            "Network_C" + std::to_string(base_concat) + "_I" + std::to_string(base_inject) + "_R" + std::to_string(base_repeat) + "_K" + std::to_string(failover_query);
     uint64_t i = 42;
     auto next_label = [&i]() {
         i++;
@@ -194,17 +164,14 @@ int main(int argc, const char** argv) {
         return Query::label_t(Query::type_t::MPLS, 0, i+1);
     };
 
-    auto result = construct_C3I2(3, 2, &i, next_label, cur_label, peek_label);
-
+    auto result = construct_base(3, 2, next_label, cur_label, peek_label);
     auto synthetic_network = std::move(result.network);
-    //Network synthetic_network = construct_base(base_concat, base_inject, &i, next_label);
 
     synthetic_network.print_dot_undirected(std::cout);
 
-    //create_flow(&synthetic_network, next_label);
-
     std::stringstream queries;
-    //TODO write query
+    //Query from start interface -> mid interface -> end interface
+    write_query_through(result.inject_flow_start.first->source(), result.mid, result.inject_flow_end.first->source(), failover_query, &queries);
 
     std::ofstream out_topo(name + "-topo.xml");
     if (out_topo.is_open()) {
