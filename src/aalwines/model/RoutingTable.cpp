@@ -125,10 +125,14 @@ namespace aalwines
 
     void RoutingTable::change_top_label(label_t from, label_t to) {
         assert(std::is_sorted(_entries.begin(), _entries.end()));
-
-        auto lb_from = std::lower_bound(_entries.begin(), _entries.end(), entry_t{from});
-        assert(lb_from != _entries.end());
-        assert(std::lower_bound(_entries.begin(), _entries.end(), entry_t{to}) == _entries.end());
+        entry_t from_entry;
+        from_entry._top_label = from;
+        auto lb_from = std::lower_bound(_entries.begin(), _entries.end(), from_entry);
+        assert(lb_from != _entries.end() && *lb_from == from_entry);
+        entry_t to_entry;
+        to_entry._top_label = to;
+        auto lb_to = std::lower_bound(_entries.begin(), _entries.end(), to_entry);
+        assert(lb_to == _entries.end() || *lb_to != to_entry);
 
         (*lb_from)._top_label = to;
         std::sort(_entries.begin(), _entries.end()); // TODO: Is there a faster way to do this, when we know only lb_from is out of place?
