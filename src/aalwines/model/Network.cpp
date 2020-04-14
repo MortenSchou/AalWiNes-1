@@ -312,6 +312,15 @@ namespace aalwines
         }
         s << "}" << std::endl;
     }
+    void Network::print_dot_undirected(std::ostream& s)
+    {
+        s << "strict graph network {\n";
+        for (auto& r : _routers) {
+            if (r->is_null()) continue;
+            r->print_dot_undirected(s);
+        }
+        s << "}" << std::endl;
+    }
     void Network::print_simple(std::ostream& s)
     {
         for(auto& r : _routers)

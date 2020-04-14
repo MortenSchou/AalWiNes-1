@@ -76,6 +76,7 @@ public:
     std::unordered_set<Query::label_t> all_labels();
     std::vector<const Interface*>& all_interfaces() { return _all_interfaces; }
     void print_dot(std::ostream& s);
+    void print_dot_undirected(std::ostream& s);
     void print_simple(std::ostream& s);
     bool is_service_label(const Query::label_t&) const;
     void write_prex_topology(std::ostream& s);

@@ -235,6 +235,19 @@ namespace aalwines
         out << "\n";
 
     }
+    void Router::print_dot_undirected(std::ostream& out)
+    {
+        if (_interfaces.empty()) {
+            out << "\"" << name() << "\" [shape=triangle];\n";
+        } else {
+            for (auto &i : _interfaces) {
+                if (i->target() == nullptr || i->target()->is_null()) continue;
+                out << "\"" << name() << "\" -- \"" << i->target()->name() << "\";\n";
+            }
+            out << "\"" << name() << "\" [shape=circle];\n";
+        }
+        out << "\n";
+    }
 
     std::unique_ptr<char[] > Router::interface_name(size_t i)
     {

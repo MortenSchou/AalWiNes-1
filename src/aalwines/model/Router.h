@@ -123,6 +123,7 @@ public:
     [[nodiscard]] const std::vector<std::string>& names() const { return _names; }
 
     void print_dot(std::ostream& out);
+    void print_dot_undirected(std::ostream& out);
     [[nodiscard]] const std::vector<std::unique_ptr<Interface>>& interfaces() const { return _interfaces; }
     void remove_interface(Interface* interface);
     Interface* find_interface(std::string iface);
