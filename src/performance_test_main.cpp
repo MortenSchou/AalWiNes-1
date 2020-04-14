@@ -74,6 +74,8 @@ synt_net make_base(
     auto middle_interface = network.get_router(2)->find_interface("Router3");
     std::vector<std::pair<Interface*, RoutingTable::label_t>> concat_flow_starts;
     std::vector<std::pair<Interface*, RoutingTable::label_t>> concat_flow_ends;
+
+    // Make data flow between all pairs of routers.
     for(auto& r1 : network.get_all_routers()){
         if (r1->is_null()) continue;
         auto interface1 = r1->get_null_interface();
@@ -85,7 +87,10 @@ synt_net make_base(
             auto pre_label = peek_label();
             FastRerouting::make_data_flow(interface1, interface2, next_label);
             auto post_label = cur_label();
-            if (r1.get() == network.get_router(0) && r2.get() == network.get_router(3)) {
+            // Store pre and post labels for flows:
+            // Inject-flow: 0 -> 4
+            // Concat-flows/pairs: 0 -> 2, 1 -> 4
+            if (r1.get() == network.get_router(0) && r2.get() == network.get_router(4)) {
                 inject_flow_start = std::make_pair(interface1, pre_label);
                 inject_flow_end = std::make_pair(interface2, post_label);
             } else if ((r1.get() == network.get_router(0) && r2.get() == network.get_router(2)) ||
@@ -95,8 +100,9 @@ synt_net make_base(
             }
         }
     }
-    // Make all pair data_flow
-    create_flow(network, next_label);
+    // Make reroute for links: 1 -> 3 and 2 -> 4.
+    FastRerouting::make_reroute(network.get_router(1)->find_interface("Router3"), next_label);
+    FastRerouting::make_reroute(network.get_router(2)->find_interface("Router4"), next_label);
 
     return synt_net{std::move(network), inject_flow_start, inject_flow_end,
                     middle_interface, concat_flow_starts, concat_flow_ends};
