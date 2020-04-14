@@ -275,6 +275,33 @@ namespace aalwines
         }
 
     }
+    void Network::concat_network(const std::vector<std::pair<Interface*, RoutingTable::label_t>>& end_links,
+            Network&& other_network, const std::vector<std::pair<Interface*, RoutingTable::label_t>>& start_links) {
+        assert(end_links.size() == start_links.size());
+        assert(this->size());
+        assert(other_network.size());
+        for (auto&& [l,t]: end_links) {
+            assert(l->target()->is_null());
+        }
+        for (auto&& [l,t]: start_links) {
+            assert(l->target()->is_null());
+        }
+
+        move_network(std::move(other_network));
+
+        for (size_t i = 0; i < end_links.size(); ++i) {
+            // Pair interfaces for concatenation.
+            end_links[i].first->make_pairing(start_links[i].first);
+
+            // Make routing tables work together.
+            for (auto&& e : start_links[i].first->table().entries()) {
+                if (e._top_label == start_links[i].second) {
+                    // e._top_label = end_links[i].second;
+                    // TODO: Make sure entries are still sorted and unique afterwards.
+                }
+            }
+        }
+    }
     void Network::concat_network(const std::vector<Interface*>& end_links, Network&& other_network, const std::vector<Interface*>& start_links) {
         assert(end_links.size() == start_links.size());
         assert(this->size());
