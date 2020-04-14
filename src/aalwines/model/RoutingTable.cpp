@@ -123,6 +123,19 @@ namespace aalwines
         }
     }
 
+    void RoutingTable::change_top_label(label_t from, label_t to) {
+        assert(std::is_sorted(_entries.begin(), _entries.end()));
+
+        auto lb_from = std::lower_bound(_entries.begin(), _entries.end(), entry_t{from});
+        assert(lb_from != _entries.end());
+        assert(std::lower_bound(_entries.begin(), _entries.end(), entry_t{to}) == _entries.end());
+
+        (*lb_from)._top_label = to;
+        std::sort(_entries.begin(), _entries.end()); // TODO: Is there a faster way to do this, when we know only lb_from is out of place?
+
+        assert(std::is_sorted(_entries.begin(), _entries.end())); // Kind of superfluous with std::sort right above it...
+    }
+
     void RoutingTable::simple_merge(const RoutingTable& other) {
         assert(std::is_sorted(other._entries.begin(), other._entries.end()));
         assert(std::is_sorted(_entries.begin(), _entries.end()));

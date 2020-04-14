@@ -109,7 +109,7 @@ namespace aalwines {
         void clear() { _entries.clear(); }
         void erase_entry(RoutingTable::entry_t& entry){ _entries.erase(std::remove(_entries.begin(), _entries.end(), entry), _entries.end()); }
 
-
+        void change_top_label(label_t from, label_t to);
         void add_rules(label_t top_label, const std::vector<forward_t>& rules);
         void add_rule(label_t top_label, const forward_t& rule);
         void add_rule(label_t top_label, forward_t&& rule);

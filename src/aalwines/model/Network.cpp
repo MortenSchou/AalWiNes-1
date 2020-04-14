@@ -294,12 +294,7 @@ namespace aalwines
             end_links[i].first->make_pairing(start_links[i].first);
 
             // Make routing tables work together.
-            for (auto&& e : start_links[i].first->table().entries()) {
-                if (e._top_label == start_links[i].second) {
-                    // e._top_label = end_links[i].second;
-                    // TODO: Make sure entries are still sorted and unique afterwards.
-                }
-            }
+            start_links[i].first->table().change_top_label(start_links[i].second, end_links[i].second);
         }
     }
     void Network::concat_network(const std::vector<Interface*>& end_links, Network&& other_network, const std::vector<Interface*>& start_links) {
