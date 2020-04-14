@@ -81,6 +81,7 @@ public:
     bool is_service_label(const Query::label_t&) const;
     void write_prex_topology(std::ostream& s);
     void write_prex_routing(std::ostream& s);
+    void write_stats(std::ostream &ofstream);
 
     static Network construct_synthetic_network(size_t nesting = 1);
     static Network make_network(const std::vector<std::string>& names, const std::vector<std::vector<std::string>>& links);
@@ -94,6 +95,7 @@ private:
     std::unordered_set<Query::label_t> _label_cache;
     std::unordered_set<Query::label_t> _non_service_label;
     uint64_t _max_label = 0;
+
     void move_network(Network&& nested_network);
 };
 }

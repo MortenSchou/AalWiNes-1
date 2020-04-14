@@ -30,17 +30,26 @@ for f in listdir("results/" + bin_hash):
                 jd2 = json.load(of2)
                 T = jd1["answers"]["Q1"]
                 T2 = jd2["answers"]["Q1"]
-                rtime.append(T["reduction-time"])
-                btime.append(T["compilation-time"])
-                vtime.append(T["verification-time"])
-                redstat.append(T["reduction"][1]/T["reduction"][0])
-                reds.append(T["reduction"][1])
+                rtime.append(T2["reduction-time"])
+                btime.append(T2["compilation-time"])
+                vtime.append(T2["verification-time"])
+                redstat.append(T2["reduction"][1]/T2["reduction"][0])
+                reds.append(T2["reduction"][1])
                 test_numbers = [int(s[1:]) for s in f.split('_') if s[1:].isdigit()]
-                test_data.append({"Name": f, "Vtime Moped": T["verification-time"], "Vtime Post*": T2["verification-time"], "Ratio(E1/E2)": T["verification-time"]/T2["verification-time"]})
+                test_data.append({"Name": f, "Compilation-time": T2["compilation-time"], "Vtime Moped": T["verification-time"], "Vtime Post*": T2["verification-time"], "Ratio(E1/E2)": T["verification-time"]/T2["verification-time"]})
             except json.decoder.JSONDecodeError as e:
                 ""
 
-sorted_data = sorted(test_data, key=lambda k: k['Ratio(E1/E2)'], reverse=True)
+sorted_data = sorted(test_data, key=lambda k: k['Ratio(E1/E2)'])
+moped_win = 0
+post_win = 0
 
 for t in sorted_data:
     print(t)
+    if(t['Vtime Moped'] > t['Vtime Post*']):
+        post_win = post_win + 1
+    else:
+        moped_win = moped_win + 1
+
+print("Moped win:" + str(moped_win))
+print("Post* win:" + str(post_win))

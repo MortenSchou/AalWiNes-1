@@ -678,5 +678,8 @@ namespace aalwines
         return Network(std::move(_mapping), std::move(_routers), std::move(_all_interfaces));
     }
 
-
+    void Network::write_stats(std::ostream& ofstream) {
+        ofstream << "Label Size: " << all_labels().size() << std::endl;
+        ofstream << "Node Size: " << get_all_routers().size() << std::endl;
+    }
 }

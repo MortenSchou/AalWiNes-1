@@ -36,3 +36,7 @@ cmake-build-debug/
 cmake-build-release/
 src/aalwines/query/*.cc
 src/aalwines/query/*.hh
+
+
+# Tests
+test/performance_test_networks/

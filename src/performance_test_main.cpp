@@ -31,24 +31,6 @@ void write_query_through(const Router* start_router, const Router* through_route
     *s << " <.> 0 DUAL\n";
 }
 
-std::pair<Router*,Router*> make_query(Network* network) {
-    std::random_device rd; // obtain a random number from hardware
-    std::mt19937 eng(rd()); // seed the generator
-    std::uniform_int_distribution<> distr(0, network->size() - 1); // define the range
-    Router *random_router;
-    Router *random_end_router;
-    do {
-        random_router = network->get_router(distr(eng));
-    } while (random_router->is_null() || random_router->get_null_interface() == nullptr);
-    do {
-        random_end_router = network->get_router(distr(eng));
-    } while (random_end_router->is_null() || random_end_router->get_null_interface() == nullptr);
-    if(random_router->index() < random_end_router->index()){
-        return std::make_pair(random_router, random_end_router);
-    }
-    return std::make_pair(random_end_router, random_router);
-}
-
 void create_path(Network& network, std::function<FastRerouting::label_t(void)>& next_label, uint64_t* i){
     /*Dynamic flow
     std::vector<std::vector<const Router*>> vector;
@@ -71,96 +53,49 @@ void create_path(Network& network, std::function<FastRerouting::label_t(void)>& 
                                   next_label, {network.get_router(0), network.get_router(2), network.get_router(3)});
 }
 
-void concat_network(Network* synthetic_network, uint64_t* i, std::function<FastRerouting::label_t(void)>& next_label, size_t size){
-    *i = *i - 1;
-    for(size_t n = 0; n < size; n++, *i = *i - 1){
-        Network synthetic_network_concat = Network::construct_synthetic_network();
-        create_path(synthetic_network_concat, next_label, i);
-        synthetic_network->concat_network(synthetic_network->get_router(n == 0 ? 3 : (3 + 1 + (5 * n)))->find_interface("iRouter3"),
-                                         std::move(synthetic_network_concat),
-                                         synthetic_network_concat.get_router(0)->find_interface("iRouter0"),
-                                         {Query::MPLS, 0, *i});
+void create_flow(Network *pNetwork, std::function<FastRerouting::label_t(void)> function) {
+    Interface* pre_router_inf = nullptr;
+    for(auto& r : pNetwork->get_all_routers()){
+        if(auto inf = r->get_null_interface()){
+            if(pre_router_inf){
+                FastRerouting::make_data_flow(pre_router_inf, inf, function);
+            }
+            pre_router_inf = inf;
+        } else {
+            pre_router_inf = nullptr;
+        }
     }
 }
 
-Router* inject_network(Network* synthetic_network, uint64_t* i, std::function<FastRerouting::label_t(void)>& next_label, size_t size, size_t data_flow){
-    Router* return_router;
-    std::random_device rd; // obtain a random number from hardware
-    std::mt19937 eng(rd()); // seed the generator
-    for(size_t n = 1; n <= size; n++) {
-        Network synthetic_network_inject = Network::construct_synthetic_network();
-        return_router = synthetic_network_inject.get_router(2);
-        /*
-        for(size_t j = 0; j < data_flow; j++){
-            auto routers = make_query(&synthetic_network_inject);
-            std::vector<const Router*> path {routers.first};
-            //Find path for routers
-            while(path.back() != routers.second){
-                if(Interface* inf = const_cast<Router*>(path.back())->find_interface(routers.second->name())){
-                    path.emplace_back(inf->target());
-                } else {
-                    std::uniform_int_distribution<> distr(1, path.back()->interfaces().size() - 1);
-                    Router* router;
-                    do{
-                        router = path.back()->interfaces()[distr(eng)]->target();
-                    }
-                    while(router->is_null());
-                    path.emplace_back(router);
-                }
-            }
-            FastRerouting::make_data_flow(synthetic_network_inject.get_router(0)->find_interface("iRouter0"),
-                                          synthetic_network_inject.get_router(3)->find_interface("iRouter3"),
-                                          next_label, path);
-        }*/
-        create_path(synthetic_network_inject, next_label, i);
-        synthetic_network->inject_network(
-                synthetic_network->get_router(n == 1? 0 : n * 5 - 4)->find_interface("Router2"),
-                std::move(synthetic_network_inject),
-                synthetic_network_inject.get_router(0)->find_interface("iRouter0"),
-                synthetic_network_inject.get_router(3)->find_interface("iRouter3"),
-                {Query::MPLS, 0, *i - 4},
-                {Query::MPLS, 0, *i - 1});
-    }
-    return return_router;
-}
+Network construct_base(size_t concat, size_t inject, uint64_t *pInt, std::function<FastRerouting::label_t(void)> function) {
+    auto network = Network::construct_synthetic_network();
+    Router* start_router = network.get_router(0);
+    Router* end_router = network.get_router(3);
+    Interface* middle_interface = network.get_router(2)->find_interface("Router3");
 
-
-std::vector<const Router*> make_flow_concat(Network* network, std::pair<Router*,Router*> router_pair){
-    std::random_device rd; // obtain a random number from hardware
-    std::mt19937 eng(rd()); // seed the generator
-    std::vector<const Router*> path;
-
-    path.emplace_back(router_pair.first);
-    Router* end_router = router_pair.second;
-
-    while(path.back() != end_router){
-        bool go_nest = false;
-        std::string end_router_interface_name = "";
-        //TODO: Make pretty, get nesting of router.
-        if(floor((path.back()->index()-1) / 5) < floor((end_router->index()-1) / 5)){
-            end_router_interface_name = "Router3";
-            go_nest = true;
-        } else {
-            end_router_interface_name = end_router->name();
-            end_router_interface_name.erase(std::remove(end_router_interface_name.begin(), end_router_interface_name.end(), '\''), end_router_interface_name.end());
+    for(size_t i = 1; i < concat; i++){
+        Network new_network = Network::construct_synthetic_network();
+        end_router = new_network.get_router(3);
+        int router_offset = i > 1 ? (i-1) * 5 + 1 : 0;
+        std::vector<Interface*> links = {network.get_router(2 + router_offset)->find_interface("iRouter2"),
+                                         network.get_router(4 + router_offset)->find_interface("iRouter4")};
+        std::vector<Interface*> start_links = {new_network.get_router(0)->find_interface("iRouter0"),
+                                               new_network.get_router(1)->find_interface("iRouter1")};
+        if(i % 2 == 1){
+            middle_interface = new_network.get_router(2)->find_interface("Router3");
         }
-        if(Interface* inf = const_cast<Router*>(path.back())->find_interface(end_router_interface_name)){
-            path.emplace_back(inf->target());
-            if(go_nest) {
-                inf = const_cast<Router*>(path.back())->find_interface("iRouter3");
-                path.emplace_back(inf->target());
-            }
-        } else {
-            std::uniform_int_distribution<> distr(1, path.back()->interfaces().size() - 1);
-            Router* router;
-            do{
-                router = path.back()->interfaces()[distr(eng)]->target();
-            }
-            while(router->is_null());
-            path.emplace_back(router);
-        }
+        network.concat_network(links, std::move(new_network), start_links);
     }
-    return path;
+    create_flow(&network, function);
+
+    for(size_t i = 1; i < inject; i++){
+        Network injecting_network = construct_base(concat, inject - 1, pInt, function);
+        std::vector<Interface*> links = {middle_interface};
+        std::vector<Network::data_flow> flows = {Network::data_flow(start_router->get_null_interface(), end_router->get_null_interface(),
+                                                           {Query::MPLS, 0, 4},{Query::MPLS, 0, 4})};
+        network.inject_network(links, std::move(injecting_network), flows);
+    }
+    return network;
 }
 
 int main(int argc, const char** argv) {
@@ -172,66 +107,67 @@ int main(int argc, const char** argv) {
     size_t concat_inject = 0;
     size_t number_networks = 1;
     size_t number_dataflow = 0;
+    size_t base_concat = 1;
+    size_t base_inject = 1;
+    size_t base_repeat = 1;
     po::options_description generate("Test Options");
     generate.add_options()
             ("size,s", po::value<size_t>(&size), "size of synthetic network")
             ("mode,m", po::value<size_t>(&concat_inject), "0 = concat and 1 = inject")
             ("networks,n", po::value<size_t>(&number_networks), "amount of test networks")
             ("flow,f", po::value<size_t>(&number_dataflow), "amount of data flow in the network")
+            ("inject,i", po::value<size_t>(&base_inject), "amount of injected networks in base")
+            ("concat,c", po::value<size_t>(&base_concat), "amount of concatenated networks in base")
+            ("reputation,r", po::value<size_t>(&base_repeat), "amount of base network reputations")
             ;
     opts.add(generate);
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, opts), vm);
     po::notify(vm);
 
-    for(size_t n = 0; n < number_networks; n++) {
-        std::string name =
-                "Test_F" + std::to_string(number_dataflow) + "_M" + std::to_string(concat_inject) + "_D" + std::to_string(size);
-        auto synthetic_network = Network::construct_synthetic_network();
-        uint64_t i = 42;
-        std::function<FastRerouting::label_t(void)> next_label = [&i]() {
-            return Query::label_t(Query::type_t::MPLS, 0, i++);
-        };
-        create_path(synthetic_network, next_label, &i);
+    std::string name =
+            "Network_C" + std::to_string(base_concat) + "_I" + std::to_string(base_inject) + "_R" + std::to_string(base_repeat);
+    uint64_t i = 42;
+    std::function<FastRerouting::label_t(void)> next_label = [&i]() {
+        return Query::label_t(Query::type_t::MPLS, 0, i++);
+    };
 
-        std::stringstream queries;
-        if (concat_inject == 0) {
-            concat_network(&synthetic_network, &i, next_label, size);
-            //Create random dataflow
-            for(size_t f = 0; f < number_dataflow; f++){
-                auto router_pair = make_query(&synthetic_network);
-                auto path = make_flow_concat(&synthetic_network, router_pair);
-                FastRerouting::make_data_flow(path[0]->get_null_interface(),path[path.size() - 1]->get_null_interface(), next_label, path);
-                //TODO if more queries -> write_query(path[0], path[path.size() - 1], &queries);
-            }
-            //Write query through whole network
-            write_query(synthetic_network.get_router(0),
-                        synthetic_network.get_router(synthetic_network.size()-2), &queries);
-        } else {
-            Router* inner_router = inject_network(&synthetic_network, &i, next_label, size, number_dataflow);
-            write_query_through(synthetic_network.get_router(0), inner_router, synthetic_network.get_router(3), &queries);
-        }
+    Network synthetic_network = construct_base(base_concat, base_inject, &i, next_label);
 
-        std::ofstream out_topo(name + "-topo.xml");
-        if (out_topo.is_open()) {
-            synthetic_network.write_prex_topology(out_topo);
-        } else {
-            std::cerr << "Could not open --write-topology file for writing" << std::endl;
-            exit(-1);
-        }
-        std::ofstream out_route(name + "-routing.xml");
-        if (out_route.is_open()) {
-            synthetic_network.write_prex_routing(out_route);
-        } else {
-            std::cerr << "Could not open --write-routing file for writing" << std::endl;
-            exit(-1);
-        }
-        std::ofstream out_query(name + "-queries.q");
-        if (out_query.is_open()) {
-            out_query << queries.rdbuf();
-        } else {
-            std::cerr << "Could not open --write-query file for writing" << std::endl;
-            exit(-1);
-        }
+    synthetic_network.print_dot_undirected(std::cout);
+
+    //create_flow(&synthetic_network, next_label);
+
+    std::stringstream queries;
+    //TODO write query
+
+    std::ofstream out_topo(name + "-topo.xml");
+    if (out_topo.is_open()) {
+        synthetic_network.write_prex_topology(out_topo);
+    } else {
+        std::cerr << "Could not open --write-topology file for writing" << std::endl;
+        exit(-1);
+    }
+    std::ofstream out_route(name + "-routing.xml");
+    if (out_route.is_open()) {
+        synthetic_network.write_prex_routing(out_route);
+    } else {
+        std::cerr << "Could not open --write-routing file for writing" << std::endl;
+        exit(-1);
+    }
+    std::ofstream out_query(name + "-queries.q");
+    if (out_query.is_open()) {
+        out_query << queries.rdbuf();
+    } else {
+        std::cerr << "Could not open --write-query file for writing" << std::endl;
+        exit(-1);
+    }
+
+    std::ofstream out_stat(name + "-stat.txt");
+    if (out_stat.is_open()) {
+        synthetic_network.write_stats(out_stat);
+    } else {
+        std::cerr << "Could not open --write-stats file for writing" << std::endl;
+        exit(-1);
     }
 }
