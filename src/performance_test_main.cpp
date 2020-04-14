@@ -106,7 +106,7 @@ synt_net make_base(
             }
             for (auto& [inf, labels] : concat_flow_ends) {
                 if (inf == interface2) {
-                    labels.push_back(post_label);
+                    labels.insert(labels.begin(), post_label);
                 }
             }
         }
