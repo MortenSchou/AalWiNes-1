@@ -78,8 +78,8 @@ synt_net make_base(
     std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>> concat_flow_ends;
     concat_flow_starts.emplace_back(network.get_router(0)->get_null_interface(), std::vector<RoutingTable::label_t>{});
     concat_flow_starts.emplace_back(network.get_router(1)->get_null_interface(), std::vector<RoutingTable::label_t>{});
-    concat_flow_ends.emplace_back(network.get_router(2)->get_null_interface(), std::vector<RoutingTable::label_t>{});
     concat_flow_ends.emplace_back(network.get_router(4)->get_null_interface(), std::vector<RoutingTable::label_t>{});
+    concat_flow_ends.emplace_back(network.get_router(3)->get_null_interface(), std::vector<RoutingTable::label_t>{});
 
     // Make data flow between all pairs of routers.
     for(auto& r1 : network.get_all_routers()){
