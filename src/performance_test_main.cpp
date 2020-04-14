@@ -67,7 +67,64 @@ void create_flow(Network *pNetwork, std::function<FastRerouting::label_t(void)> 
     }
 }
 
-Network construct_base(size_t concat, size_t inject, uint64_t *pInt, std::function<FastRerouting::label_t(void)> function) {
+struct synt_net {
+    Network network;
+    Router* start;
+    Router* end;
+    Interface* mid;
+    std::vector<Interface*> start_links;
+    std::vector<Interface*> end_links;
+};
+
+synt_net inject_synt(synt_net net1, synt_net net2) {
+    std::vector<Interface*> links = {net1.mid};
+    std::vector<Network::data_flow> flows = {Network::data_flow(net2.start->get_null_interface(), net2.end->get_null_interface(),
+                                             {Query::MPLS, 0, 4},{Query::MPLS, 0, 4})};
+    net1.network.inject_network(links, std::move(net2.network), flows);
+    return synt_net{std::move(net1.network), net1.start, net1.end, net2.mid, net1.start_links, net1.end_links};
+}
+synt_net concat_synt(std::vector<synt_net> nets) {
+    assert(nets.size() % 2 == 1);
+    auto&& net = nets[0];
+    auto& end_links = net.end_links;
+    for (size_t i = 1; i < nets.size(); ++i) {
+        net.network.concat_network(end_links, std::move(nets[i].network), nets[i].start_links);
+        end_links = nets[i].end_links;
+    }
+    return synt_net{std::move(net.network), net.start, nets[nets.size()-1].end, nets[(nets.size()-1)/2].mid, net.start_links, end_links};
+}
+
+synt_net make_base() {
+    auto network = Network::construct_synthetic_network();
+    Router* start_router = network.get_router(0);
+    Router* end_router = network.get_router(3);
+    Interface* middle_interface = network.get_router(2)->find_interface("Router3");
+    std::vector<Interface*> start_links = {network.get_router(0)->find_interface("iRouter0"),
+                                           network.get_router(1)->find_interface("iRouter1")};
+    std::vector<Interface*> end_links = {network.get_router(2)->find_interface("iRouter2"),
+                                         network.get_router(4)->find_interface("iRouter4")};
+    return synt_net{std::move(network), start_router, end_router, middle_interface, start_links, end_links};
+}
+
+synt_net construct_C3I2(size_t concat, size_t inject, uint64_t *pInt, const std::function<FastRerouting::label_t(void)>& function) {
+    std::vector<synt_net> nets;
+    for (size_t i = 0; i < concat; ++i) {
+        nets.push_back(make_base());
+    }
+    auto net1 = concat_synt(nets);
+    std::vector<synt_net> nets2;
+    for (size_t i = 0; i < concat; ++i) {
+        nets2.push_back(make_base());
+    }
+    auto net2 = concat_synt(nets2);
+
+    auto net = inject_synt(std::move(net1), std::move(net2));
+    return net;
+}
+
+
+synt_net construct_base(size_t concat, size_t inject, uint64_t *pInt, const std::function<FastRerouting::label_t(void)>& function) {
+    assert(concat % 2 == 1);
     auto network = Network::construct_synthetic_network();
     Router* start_router = network.get_router(0);
     Router* end_router = network.get_router(3);
@@ -81,7 +138,7 @@ Network construct_base(size_t concat, size_t inject, uint64_t *pInt, std::functi
                                          network.get_router(4 + router_offset)->find_interface("iRouter4")};
         std::vector<Interface*> start_links = {new_network.get_router(0)->find_interface("iRouter0"),
                                                new_network.get_router(1)->find_interface("iRouter1")};
-        if(i % 2 == 1){
+        if(i == (concat - 1)/2){
             middle_interface = new_network.get_router(2)->find_interface("Router3");
         }
         network.concat_network(links, std::move(new_network), start_links);
@@ -89,13 +146,14 @@ Network construct_base(size_t concat, size_t inject, uint64_t *pInt, std::functi
     create_flow(&network, function);
 
     for(size_t i = 1; i < inject; i++){
-        Network injecting_network = construct_base(concat, inject - 1, pInt, function);
-        std::vector<Interface*> links = {middle_interface};
+        auto injecting = construct_base(concat, inject - 1, pInt, function);
+        std::vector<Interface*> links = {injecting.mid};
         std::vector<Network::data_flow> flows = {Network::data_flow(start_router->get_null_interface(), end_router->get_null_interface(),
                                                            {Query::MPLS, 0, 4},{Query::MPLS, 0, 4})};
-        network.inject_network(links, std::move(injecting_network), flows);
+        network.inject_network(links, std::move(injecting.network), flows);
+        middle_interface = injecting.mid;
     }
-    return network;
+    return synt_net{std::move(network), start_router, end_router, middle_interface};
 }
 
 int main(int argc, const char** argv) {
@@ -132,7 +190,10 @@ int main(int argc, const char** argv) {
         return Query::label_t(Query::type_t::MPLS, 0, i++);
     };
 
-    Network synthetic_network = construct_base(base_concat, base_inject, &i, next_label);
+    auto result = construct_C3I2(3, 2, &i, next_label);
+
+    auto synthetic_network = std::move(result.network);
+    //Network synthetic_network = construct_base(base_concat, base_inject, &i, next_label);
 
     synthetic_network.print_dot_undirected(std::cout);
 
