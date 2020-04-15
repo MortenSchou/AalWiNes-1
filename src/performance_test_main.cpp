@@ -13,61 +13,65 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
-void write_query_through(const Router* start_router, const Interface* through_interface, const Router* end_router, const size_t failover, std::stringstream* s){
-    *s << "<.> ";
-    *s << "[.#" + start_router->name() + "]";
-    *s << " .* ";
-    *s << "[" + through_interface->source()->name() + "#" + through_interface->target()->name() + "]";
-    *s << " .* ";
-    *s << "[" + end_router->name() + "#.]";
-    *s << " <.> " << failover << " DUAL\n";
+void write_query_through(const Router* start_router, const Interface* through_interface, const Router* end_router, const size_t failover, std::ostream& s){
+    s << "<.> ";
+    s << "[.#" + start_router->name() + "]";
+    s << " .* ";
+    s << "[" + through_interface->source()->name() + "#" + through_interface->target()->name() + "]";
+    s << " .* ";
+    s << "[" + end_router->name() + "#.]";
+    s << " <.> " << failover << " DUAL\n";
 }
 
-void create_flow(Network &pNetwork, std::function<FastRerouting::label_t(void)> function) {
-    Interface* pre_router_inf = nullptr;
-    for(auto& r : pNetwork.get_all_routers()){
-        if(auto inf = r->get_null_interface()){
-            if(pre_router_inf){
-                FastRerouting::make_data_flow(pre_router_inf, inf, function);
-            }
-            pre_router_inf = inf;
-        } else {
-            pre_router_inf = nullptr;
-        }
-    }
-}
-
-struct synt_net {
+struct SyntheticNetwork {
     Network network;
     std::pair<Interface*, RoutingTable::label_t> inject_flow_start;
     std::pair<Interface*, RoutingTable::label_t> inject_flow_end;
     Interface* mid;
     std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>> concat_flow_starts;
     std::vector<std::pair<Interface*, std::vector<RoutingTable::label_t>>> concat_flow_ends;
+
+    void inject(SyntheticNetwork&& net2) {
+        std::vector<Interface*> links = {mid};
+        std::vector<Network::data_flow> flows = {Network::data_flow{net2.inject_flow_start, net2.inject_flow_end}};
+        network.inject_network(links, std::move(net2.network), flows);
+        mid = net2.mid;
+    }
+    static SyntheticNetwork concat(std::vector<SyntheticNetwork>&& nets) {
+        assert(nets.size() % 2 == 1);
+        auto&& net = nets[0];
+        auto& flow_ends = net.concat_flow_ends;
+        for (size_t i = 1; i < nets.size(); ++i) {
+            net.network.concat_network(flow_ends, std::move(nets[i].network), nets[i].concat_flow_starts);
+            flow_ends = nets[i].concat_flow_ends;
+        }
+        return SyntheticNetwork{std::move(net.network), net.inject_flow_start, nets[nets.size() - 1].inject_flow_end,
+                                nets[(nets.size()-1)/2].mid, net.concat_flow_starts, flow_ends};
+    }
+    void make_query(size_t fails, std::ostream& s){
+        write_query_through(inject_flow_start.first->source(), mid, inject_flow_end.first->source(), fails, s);
+    }
+};
+struct label_generator {
+    explicit label_generator(uint64_t start) : i(start) {};
+    auto next() {
+        i++;
+        return Query::label_t(Query::type_t::MPLS, 0, i);
+    };
+    auto next_fn() {
+        return [this](){ return next(); };
+    }
+    auto current() {
+        return Query::label_t(Query::type_t::MPLS, 0, i);
+    };
+    auto peek() {
+        return Query::label_t(Query::type_t::MPLS, 0, i+1);
+    };
+private:
+    uint64_t i;
 };
 
-synt_net inject_synt(synt_net&& net1, synt_net&& net2) {
-    std::vector<Interface*> links = {net1.mid};
-    std::vector<Network::data_flow> flows = {Network::data_flow{net2.inject_flow_start, net2.inject_flow_end}};
-    net1.network.inject_network(links, std::move(net2.network), flows);
-    return synt_net{std::move(net1.network), net1.inject_flow_start, net1.inject_flow_end, net2.mid, net1.concat_flow_starts, net1.concat_flow_ends};
-}
-synt_net concat_synt(std::vector<synt_net>&& nets) {
-    assert(nets.size() % 2 == 1);
-    auto&& net = nets[0];
-    auto& flow_ends = net.concat_flow_ends;
-    for (size_t i = 1; i < nets.size(); ++i) {
-        net.network.concat_network(flow_ends, std::move(nets[i].network), nets[i].concat_flow_starts);
-        flow_ends = nets[i].concat_flow_ends;
-    }
-    return synt_net{std::move(net.network), net.inject_flow_start, nets[nets.size()-1].inject_flow_end,
-                    nets[(nets.size()-1)/2].mid, net.concat_flow_starts, flow_ends};
-}
-
-synt_net make_base(
-        const std::function<FastRerouting::label_t(void)>& next_label,
-        const std::function<FastRerouting::label_t(void)>& cur_label,
-        const std::function<FastRerouting::label_t(void)>& peek_label) {
+SyntheticNetwork make_base(label_generator& labels) {
     auto network = Network::construct_synthetic_network();
     std::pair<Interface*, RoutingTable::label_t> inject_flow_start;
     std::pair<Interface*, RoutingTable::label_t> inject_flow_end;
@@ -90,9 +94,9 @@ synt_net make_base(
             if (r1 == r2 || r2->is_null()) continue;
             auto interface2 = r2->get_null_interface();
             if (interface2 == nullptr) continue;
-            auto pre_label = peek_label();
-            FastRerouting::make_data_flow(interface1, interface2, next_label);
-            auto post_label = cur_label();
+            auto pre_label = labels.peek();
+            FastRerouting::make_data_flow(interface1, interface2, labels.next_fn());
+            auto post_label = labels.current();
             // Store pre and post labels for flows:
             // Inject-flow: 0 -> 4
             if (r1.get() == network.get_router(0) && r2.get() == network.get_router(4)) {
@@ -112,28 +116,37 @@ synt_net make_base(
         }
     }
     // Make reroute for links: 1 -> 3 and 2 -> 4.
-    FastRerouting::make_reroute(network.get_router(1)->find_interface("Router3"), next_label);
-    FastRerouting::make_reroute(network.get_router(2)->find_interface("Router4"), next_label);
+    FastRerouting::make_reroute(network.get_router(1)->find_interface("Router3"), labels.next_fn());
+    FastRerouting::make_reroute(network.get_router(2)->find_interface("Router4"), labels.next_fn());
 
-    return synt_net{std::move(network), inject_flow_start, inject_flow_end,
-                    middle_interface, concat_flow_starts, concat_flow_ends};
+    return SyntheticNetwork{std::move(network), inject_flow_start, inject_flow_end,
+                            middle_interface, concat_flow_starts, concat_flow_ends};
 }
 
-synt_net construct_base(size_t concat, size_t inject,
-                        const std::function<FastRerouting::label_t(void)>& next_label,
-                        const std::function<FastRerouting::label_t(void)>& cur_label,
-                        const std::function<FastRerouting::label_t(void)>& peek_label) {
-    std::vector<synt_net> nets;
-    for (size_t i = 0; i < concat; ++i) {
-        nets.push_back(make_base(next_label, cur_label, peek_label));
+extern SyntheticNetwork construct_base(size_t concat, size_t inject, size_t repetitions, label_generator& labels,
+                                       const std::function<SyntheticNetwork(size_t, size_t, size_t, label_generator&)>& make_inner);
+
+SyntheticNetwork construct_nesting(size_t concat, size_t inject, size_t repetitions, label_generator& labels) {
+    if (repetitions == 0) {
+        return make_base(labels);
+    } else {
+        return construct_base(concat, inject, repetitions - 1, labels, construct_nesting);
     }
-    auto net = concat_synt(std::move(nets));
+}
+
+SyntheticNetwork construct_base(size_t concat, size_t inject, size_t repetitions, label_generator& labels,
+                                const std::function<SyntheticNetwork(size_t, size_t, size_t, label_generator&)>& make_inner) {
+    std::vector<SyntheticNetwork> nets;
+    for (size_t i = 0; i < concat; ++i) {
+        nets.push_back(make_inner(concat, inject, repetitions, labels));
+    }
+    auto net = SyntheticNetwork::concat(std::move(nets));
     for (size_t j = 1; j < inject; j++) {
-        std::vector<synt_net> nets2;
+        std::vector<SyntheticNetwork> nets2;
         for (size_t i = 0; i < concat; ++i) {
-            nets2.push_back(make_base(next_label, cur_label, peek_label));
+            nets2.push_back(make_inner(concat, inject, repetitions, labels));
         }
-        net = inject_synt(std::move(net), concat_synt(std::move(nets2)));
+        net.inject(SyntheticNetwork::concat(std::move(nets2)));
     }
     return net;
 }
@@ -159,7 +172,7 @@ int main(int argc, const char** argv) {
             ("flow,f", po::value<size_t>(&number_dataflow), "amount of data flow in the network")
             ("inject,i", po::value<size_t>(&base_inject), "amount of injected networks in base")
             ("concat,c", po::value<size_t>(&base_concat), "amount of concatenated networks in base")
-            ("reputation,r", po::value<size_t>(&base_repeat), "amount of base network reputations")
+            ("repetition,r", po::value<size_t>(&base_repeat), "amount of base network repetition")
             ("failover,k", po::value<size_t>(&failover_query), "failover paths")
             ;
     opts.add(generate);
@@ -169,26 +182,16 @@ int main(int argc, const char** argv) {
 
     std::string name =
             "Network_C" + std::to_string(base_concat) + "_I" + std::to_string(base_inject) + "_R" + std::to_string(base_repeat) + "_K" + std::to_string(failover_query);
-    uint64_t i = 42;
-    auto next_label = [&i]() {
-        i++;
-        return Query::label_t(Query::type_t::MPLS, 0, i);
-    };
-    auto cur_label = [&i]() {
-        return Query::label_t(Query::type_t::MPLS, 0, i);
-    };
-    auto peek_label = [&i]() {
-        return Query::label_t(Query::type_t::MPLS, 0, i+1);
-    };
 
-    auto result = construct_base(3, 2, next_label, cur_label, peek_label);
+    label_generator labels(42);
+    auto result = construct_nesting(base_concat, base_inject, base_repeat, labels);
     auto synthetic_network = std::move(result.network);
 
     synthetic_network.print_dot_undirected(std::cout);
 
     std::stringstream queries;
     //Query from start interface -> mid interface -> end interface
-    write_query_through(result.inject_flow_start.first->source(), result.mid, result.inject_flow_end.first->source(), failover_query, &queries);
+    result.make_query(failover_query, queries);
 
     std::ofstream out_topo(name + "-topo.xml");
     if (out_topo.is_open()) {
