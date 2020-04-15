@@ -129,11 +129,12 @@ namespace aalwines
         from_entry._top_label = from;
         auto lb_from = std::lower_bound(_entries.begin(), _entries.end(), from_entry);
         assert(lb_from != _entries.end() && *lb_from == from_entry);
+#ifndef NDEBUG
         entry_t to_entry;
         to_entry._top_label = to;
         auto lb_to = std::lower_bound(_entries.begin(), _entries.end(), to_entry);
         assert(lb_to == _entries.end() || *lb_to != to_entry);
-
+#endif
         (*lb_from)._top_label = to;
         std::sort(_entries.begin(), _entries.end()); // TODO: Is there a faster way to do this, when we know only lb_from is out of place?
 

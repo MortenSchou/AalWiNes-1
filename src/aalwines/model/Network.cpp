@@ -280,13 +280,14 @@ namespace aalwines
         assert(end_links.size() == start_links.size());
         assert(this->size());
         assert(other_network.size());
+#ifndef NDEBUG
         for (auto&& [inf,labels]: end_links) {
             assert(inf->target()->is_null());
         }
         for (auto&& [inf,labels]: start_links) {
             assert(inf->target()->is_null());
         }
-
+#endif
         move_network(std::move(other_network));
 
         for (size_t i = 0; i < end_links.size(); ++i) {
@@ -304,13 +305,14 @@ namespace aalwines
         assert(end_links.size() == start_links.size());
         assert(this->size());
         assert(other_network.size());
+#ifndef NDEBUG
         for (auto&& l: end_links) {
             assert(l->target()->is_null());
         }
         for (auto&& l: start_links) {
             assert(l->target()->is_null());
         }
-
+#endif
         move_network(std::move(other_network));
 
         for (size_t i = 0; i < end_links.size(); ++i) {
