@@ -706,7 +706,14 @@ namespace aalwines
     }
 
     void Network::write_stats(std::ostream& ofstream) {
-        ofstream << "Label Size: " << all_labels().size() << std::endl;
         ofstream << "Node Size: " << get_all_routers().size() << std::endl;
+        ofstream << "Label Size: " << all_labels().size() << std::endl;
+        size_t rules_s = 0;
+        for(auto& inf : all_interfaces()){
+            for(auto& entry : inf->table().entries()){
+                rules_s += entry._rules.size();
+            }
+        }
+        ofstream << "Rules Size: " << rules_s << std::endl;
     }
 }

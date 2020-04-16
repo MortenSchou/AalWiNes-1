@@ -32,6 +32,8 @@
 *.app
 /build/
 .idea/
+cmake-build-static/
+cmake-build-profiler/
 cmake-build-debug/
 cmake-build-debug-wsl/
 cmake-build-release/
