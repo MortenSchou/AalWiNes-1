@@ -358,6 +358,7 @@ int main(int argc, const char** argv)
                 break;
             }
             std::cout << ",\n";
+            network.write_stats(std::cout);
             std::cout << "\t\t\"pda_states_rules\":[" << network._pda_states << ", " << network._pda_rules << "]";
             std::cout << ",\n";
             std::cout << "\t\t\"reduction\":[" << reduction.first << ", " << reduction.second << "]";
