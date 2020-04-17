@@ -12,6 +12,35 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
+void make_queries(const Network& network, const size_t k, std::ostream& s){
+    // TODO: Come up with good queries
+
+    // Type 1
+    s << "<.> ";
+    s << ".";
+    s << " <.> " << k << " DUAL" << std::endl;
+
+    // Type 2
+    s << "<.> ";
+    s << ".";
+    s << " <.> " << k << " DUAL" << std::endl;
+
+    // Type 3
+    s << "<.> ";
+    s << ".";
+    s << " <.> " << k << " DUAL" << std::endl;
+
+    // Type 4
+    s << "<.> ";
+    s << ".";
+    s << " <.> " << k << " DUAL" << std::endl;
+
+    // Type 5
+    s << "<.> ";
+    s << ".";
+    s << " <.> " << k << " DUAL" << std::endl;
+}
+
 int main(int argc, const char** argv) {
     po::options_description opts;
     opts.add_options()
@@ -24,11 +53,13 @@ int main(int argc, const char** argv) {
             ;
     opts.add(input);
     size_t size = 1;
+    size_t max_k = 3;
     bool dot_graph = false;
     bool print_simple = false;
     po::options_description generate("Test Options");
     generate.add_options()
             ("size,N", po::value<size_t>(&size), "the size variable (N)")
+            ("max_k,k", po::value<size_t>(&max_k), "the maximal number of failures (k) for the queries generated")
             ("dot,d", po::bool_switch(&dot_graph), "print dot graph output")
             ("print_simple,p", po::bool_switch(&print_simple), "print simple routing output")
             ;
@@ -86,9 +117,8 @@ int main(int argc, const char** argv) {
     }
 
     std::stringstream queries;
-    for (int k = 0; k <= 3; ++k) {
-        // TODO: Make queries(k) on network
-        queries << std::endl;
+    for (size_t k = 0; k <= max_k; ++k) {
+        make_queries(network, k, queries);
     }
 
     auto topo_file = name + "-" + std::to_string(size) + "-topo.xml";
