@@ -279,19 +279,17 @@ int main(int argc, const char** argv)
                 NetworkPDAFactory factory(q, network, no_ip_swap);
                 auto pda = factory.compile();
                 network._pda_states = pda.states().size();
-                //std::for_each(pda.states().begin(), pda.states().end(), [&network]() { network._pda_rules++; });
+                compilation_time.stop();
                 for(auto& s : pda.states()){
                     network._pda_rules += s._rules.size();
                 }
-                compilation_time.stop();
                 reduction_time.start();
                 reduction = Reducer::reduce(pda, tos, pda.initial(), pda.terminal());
+                reduction_time.stop();
                 network._pda_states_after_reduction = pda.states().size();
-                //std::for_each(pda.states().begin(), pda.states().end(), [&network]() { network._pda_rules_after_reduction++; });
                 for(auto& s : pda.states()){
                     network._pda_rules_after_reduction += s._rules.size();
                 }
-                reduction_time.stop();
                 verification_time.start();
                 bool engine_outcome;
                 bool need_trace = was_dual || get_trace;
