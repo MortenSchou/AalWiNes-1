@@ -715,5 +715,11 @@ namespace aalwines
             }
         }
         ofstream << "Rules Size: " << rules_s << std::endl;
+        ofstream << "PDA size: " << std::endl;
+        ofstream << "PDA States: " << _pda_states << std::endl;
+        ofstream << "PDA Rules: " << _pda_rules << std::endl;
+
+        ofstream << "PDA States After Reduction: " << _pda_states_after_reduction << std::endl;
+        ofstream << "PDA Rules After Reduction: " << _pda_rules_after_reduction << std::endl;
     }
 }

@@ -110,6 +110,8 @@ namespace pdaaal
                     }
                     else if(buffer.substr(2, 18) == "[ target reached ]" && saw_init && saw_end)
                     {
+                        std::getline(is, buffer);
+                        _moped_verification_time_output = std::stod(buffer);
                         break;
                     }
                     else

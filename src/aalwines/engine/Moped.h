@@ -55,6 +55,7 @@ namespace pdaaal {
         std::vector<typename TypedPDA<T>::tracestate_t> get_trace(TypedPDA<T>& pda) const;
 
         [[nodiscard]] double verification_duration() const { return _verification_time.duration(); }
+        double _moped_verification_time_output;
 
     private:
         bool parse_result(const std::string&, bool build_trace);

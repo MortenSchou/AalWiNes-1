@@ -278,9 +278,11 @@ int main(int argc, const char** argv)
                 q.set_approximation(m);
                 NetworkPDAFactory factory(q, network, no_ip_swap);
                 auto pda = factory.compile();
+                network._pda_rules = pda.size();
                 compilation_time.stop();
                 reduction_time.start();
                 reduction = Reducer::reduce(pda, tos, pda.initial(), pda.terminal());
+                network._pda_rules_after_reduction = pda.size();
                 reduction_time.stop();
                 verification_time.start();
                 bool engine_outcome;
@@ -361,7 +363,14 @@ int main(int argc, const char** argv)
             {
                 std::cout << ",\n\t\t\"compilation-time\":" << (compilation_time.duration())
                           << ",\n\t\t\"reduction-time\":" << (reduction_time.duration())
-                         << ",\n\t\t\"verification-time\":" << (engine != 1 ? verification_time.duration() : moped.verification_duration());
+                          << ",\n\t\t\"verification-time\":" << (engine == 1 ? moped._moped_verification_time_output : verification_time.duration());
+                          /*if(engine == 1){
+                              std::cout << ",\n\t\t\"verification-time\":" << moped.verification_duration();
+                              std::cout << ",\n\t\t\"moped-verification-time\":" << moped._moped_verification_time_output;
+                          } else{
+                              std::cout << ",\n\t\t\"verification-time\":" << verification_time.duration();
+                          }*/
+
             }
             std::cout << "\n\t}";
             if(query_no != builder._result.size())

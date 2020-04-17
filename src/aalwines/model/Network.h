@@ -89,6 +89,10 @@ public:
     void write_prex_topology(std::ostream& s);
     void write_prex_routing(std::ostream& s);
     void write_stats(std::ostream &ofstream);
+    size_t _pda_states = 0;
+    size_t _pda_states_after_reduction = 0;
+    size_t _pda_rules = 0;
+    size_t _pda_rules_after_reduction = 0;
 
     static Network construct_synthetic_network(size_t nesting = 1);
     static Network make_network(const std::vector<std::string>& names, const std::vector<std::vector<std::string>>& links);
