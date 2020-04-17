@@ -12,34 +12,46 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
-void make_queries(const Network& network, const size_t k, std::ostream& s){
+void make_query(const Network& network, const size_t type, const size_t k, std::ostream& s){
     // TODO: Come up with good queries
-
-    // Type 1
-    s << "<.> ";
-    s << ".";
-    s << " <.> " << k << " DUAL" << std::endl;
-
-    // Type 2
-    s << "<.> ";
-    s << ".";
-    s << " <.> " << k << " DUAL" << std::endl;
-
-    // Type 3
-    s << "<.> ";
-    s << ".";
-    s << " <.> " << k << " DUAL" << std::endl;
-
-    // Type 4
-    s << "<.> ";
-    s << ".";
-    s << " <.> " << k << " DUAL" << std::endl;
-
-    // Type 5
-    s << "<.> ";
-    s << ".";
-    s << " <.> " << k << " DUAL" << std::endl;
+    switch (type) {
+        default:
+        case 1:
+            // Type 1: Find a single step, single stack-size.
+            s << "<.> . <.> " << k << " DUAL" << std::endl;
+            break;
+        case 2:
+            // Type 2
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+        case 3:
+            // Type 3
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+        case 4:
+            // Type 4
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+        case 5:
+            // Type 5
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+    }
 }
+
+Network make_large(const std::function<Network()>& make_base, size_t n) { // Use parse function, since Network doesn't currently have a copy-constructor.
+    // TODO: Implement!
+    return make_base();
+}
+
 
 int main(int argc, const char** argv) {
     po::options_description opts;
@@ -83,10 +95,7 @@ int main(int argc, const char** argv) {
         name = topo_zoo;
     }
 
-    auto input_network = TopologyZooBuilder::parse(topo_zoo);
-
-    // TODO: Make_Larger(N)
-    auto network = std::move(input_network);
+    auto network = make_large([&topo_zoo](){ return TopologyZooBuilder::parse(topo_zoo); }, size);
 
     // Construct routes on network
     uint64_t i = 42;
@@ -116,9 +125,20 @@ int main(int argc, const char** argv) {
         network.print_simple(std::cout);
     }
 
-    std::stringstream queries;
+    size_t q = 1;
     for (size_t k = 0; k <= max_k; ++k) {
-        make_queries(network, k, queries);
+        for (size_t type = 1; type <= 5; ++type, ++q) {
+            std::stringstream queries;
+            make_query(network, type, k, queries);
+            auto query_file = name + "-" + std::to_string(size) + "-Q" + std::to_string(q) + ".q";
+            std::ofstream out_query(query_file);
+            if (out_query.is_open()) {
+                out_query << queries.rdbuf();
+            } else {
+                std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                exit(-1);
+            }
+        }
     }
 
     auto topo_file = name + "-" + std::to_string(size) + "-topo.xml";
@@ -135,14 +155,6 @@ int main(int argc, const char** argv) {
         network.write_prex_routing(out_route);
     } else {
         std::cerr << "Could not open file " << routing_file << " for writing" << std::endl;
-        exit(-1);
-    }
-    auto query_file = name + "-" + std::to_string(size) + "-queries.q";
-    std::ofstream out_query(query_file);
-    if (out_query.is_open()) {
-        out_query << queries.rdbuf();
-    } else {
-        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
         exit(-1);
     }
 }
