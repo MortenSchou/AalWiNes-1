@@ -278,11 +278,19 @@ int main(int argc, const char** argv)
                 q.set_approximation(m);
                 NetworkPDAFactory factory(q, network, no_ip_swap);
                 auto pda = factory.compile();
-                network._pda_rules = pda.size();
+                network._pda_states = pda.states().size();
+                //std::for_each(pda.states().begin(), pda.states().end(), [&network]() { network._pda_rules++; });
+                for(auto& s : pda.states()){
+                    network._pda_rules += s._rules.size();
+                }
                 compilation_time.stop();
                 reduction_time.start();
                 reduction = Reducer::reduce(pda, tos, pda.initial(), pda.terminal());
-                network._pda_rules_after_reduction = pda.size();
+                network._pda_states_after_reduction = pda.states().size();
+                //std::for_each(pda.states().begin(), pda.states().end(), [&network]() { network._pda_rules_after_reduction++; });
+                for(auto& s : pda.states()){
+                    network._pda_rules_after_reduction += s._rules.size();
+                }
                 reduction_time.stop();
                 verification_time.start();
                 bool engine_outcome;
@@ -352,7 +360,11 @@ int main(int argc, const char** argv)
                 break;
             }
             std::cout << ",\n";
+            std::cout << "\t\t\"pda_states_rules\":[" << network._pda_states << ", " << network._pda_rules << "]";
+            std::cout << ",\n";
             std::cout << "\t\t\"reduction\":[" << reduction.first << ", " << reduction.second << "]";
+            std::cout << ",\n";
+            std::cout << "\t\t\"pda_states_rules_reduction\":[" << network._pda_states_after_reduction << ", " << network._pda_rules_after_reduction << "]";
             if(get_trace && result == utils::YES)
             {
                 std::cout << ",\n\t\t\"trace\":[\n";
