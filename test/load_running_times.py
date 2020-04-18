@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import json
 import sys
 from os import listdir
@@ -34,22 +35,22 @@ for f in listdir("results/" + bin_hash):
                                                     try:
                                                         files = [
                                                             of1, of1r1, of1r2, of1r3, of2, of2r1, of2r2, of2r3, of3, of3r1, of3r2, of3r3]
-                                                        queries = [
-                                                            [] for x in range(files)]
-                                                        for i in range(files):
-                                                            jd = json.load(
-                                                                files[i])
-                                                            for q in jd["answers"]:
-                                                                queries[i].append(
-                                                                    q)
+                                                        #queries = [[] for x in range(files)]
+                                                        #for i in range(files):
+                                                        #    jd = json.load(
+                                                        #        files[i])
+                                                        #    for q in jd["answers"]:
+                                                        #        queries[i].append(
+                                                        #            q)
+                                                        queries = []
 
                                                         # Get universal network stats
                                                         network_stats = {
-                                                            "Nodes": queries[0][0]["network_node_size"], "Labels": queries[0][0]["network_label_size"], "Rules": queries[0][0]["network_rules_size"]}
+                                                            "Nodes": queries[0]["network_node_size"], "Labels": queries[0]["network_label_size"], "Rules": queries[0]["network_rules_size"]}
                                                         pda_stats = {
-                                                            "States": queries[0][0]["pda_states_rules"][0], "Rules": queries[0][0]["pda_states_rules"][1]}
+                                                            "States": queries[0]["pda_states_rules"][0], "Rules": queries[0]["pda_states_rules"][1]}
                                                         pda_stats_after = {
-                                                            "States_reduction": queries[0][0]["pda_states_rules_reduction"][0], "Rules_reduction": queries[0][0]["pda_states_rules_reduction"][1]}
+                                                            "States_reduction": queries[0]["pda_states_rules_reduction"][0], "Rules_reduction": queries[0]["pda_states_rules_reduction"][1]}
                                                         test_numbers = [int(s[1:])
                                                                         for s in f.split('_') if s[1:].isdigit()]
 
@@ -61,16 +62,14 @@ for f in listdir("results/" + bin_hash):
                                                             if qs % 4:
                                                                 reduction = 0
                                                                 engine = engine + 1
-
-                                                            for q in queries[qs]:
-                                                                qn = qn + 1
-                                                                fails = 0
-                                                                # Adapt to Morten structure
-                                                                if qn > 3:
-                                                                    fails = 1
-                                                                verification_compilation.append(
-                                                                    {"Engine": engine, "Reduction": reduction, "Failover": fails, "Compilation_verification": q['verification-time'] + q['compilation-time'] + q['reduction-time'],
-                                                                     "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"]})
+                                                            
+                                                            # Adapt Fails to Morten structure
+                                                            Q = test_numbers[1]
+                                                            fails = floor((Q - 1) / 5)
+                                                            Q_type = (Q - 1) % 5 + 1
+                                                            verification_compilation.append(
+                                                                {"Engine": engine, "Reduction": reduction, "Failover": fails, "Type": Q_type, "Compilation_verification": q['verification-time'] + q['compilation-time'] + q['reduction-time'],
+                                                                    "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"]})
 
                                                         sorted_verification_data = sorted(
                                                             verification_compilation, key=lambda k: k['Compilation_verification'])
