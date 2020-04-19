@@ -12,6 +12,69 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
+void make_query(const Network& network, const size_t type, const size_t k, std::ostream& s){
+    // TODO: Come up with good queries
+    switch (type) {
+        default:
+        case 1:
+            // Type 1: Find a single step, single stack-size.
+            s << "<.> . <.> " << k << " DUAL" << std::endl;
+            break;
+        case 2:
+            // Type 2
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+        case 3:
+            // Type 3
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+        case 4:
+            // Type 4
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+        case 5:
+            // Type 5
+            s << "<.> ";
+            s << ".";
+            s << " <.> " << k << " DUAL" << std::endl;
+            break;
+    }
+}
+
+Network make_large(const std::function<Network()>& make_base, size_t n) { // Use parse function, since Network doesn't currently have a copy-constructor.
+    assert(n != 0);
+    if (n == 1) {
+        return make_base();
+    }
+    auto net = make_base();
+    auto size = net.size() - 1; // Don't count NULL router.
+    std::vector<Interface*> from_interfaces;
+    for (size_t r = 0; r < size; r+=3) {
+        from_interfaces.push_back(net.get_router(r)->get_null_interface());
+    }
+    for (size_t i = 1; i < n; ++i) {
+        auto new_net = make_base();
+        std::vector<Interface*> to_interfaces;
+        std::vector<Interface*> temp_interfaces;
+        for (size_t r = (i-1)%3; r < size; r+=3) {
+            to_interfaces.push_back(new_net.get_router(r)->get_null_interface());
+        }
+        for (size_t r = i%3; r < size; r+=3) {
+            temp_interfaces.push_back(new_net.get_router(r)->get_null_interface());
+        }
+        net.concat_network(from_interfaces, std::move(new_net), to_interfaces);
+        from_interfaces = temp_interfaces;
+    }
+    return net;
+}
+
+
 int main(int argc, const char** argv) {
     po::options_description opts;
     opts.add_options()
@@ -24,11 +87,13 @@ int main(int argc, const char** argv) {
             ;
     opts.add(input);
     size_t size = 1;
+    size_t max_k = 3;
     bool dot_graph = false;
     bool print_simple = false;
     po::options_description generate("Test Options");
     generate.add_options()
             ("size,N", po::value<size_t>(&size), "the size variable (N)")
+            ("max_k,k", po::value<size_t>(&max_k), "the maximal number of failures (k) for the queries generated")
             ("dot,d", po::bool_switch(&dot_graph), "print dot graph output")
             ("print_simple,p", po::bool_switch(&print_simple), "print simple routing output")
             ;
@@ -52,10 +117,7 @@ int main(int argc, const char** argv) {
         name = topo_zoo;
     }
 
-    auto input_network = TopologyZooBuilder::parse(topo_zoo);
-
-    // TODO: Make_Larger(N)
-    auto network = std::move(input_network);
+    auto network = make_large([&topo_zoo](){ return TopologyZooBuilder::parse(topo_zoo); }, size);
 
     // Construct routes on network
     uint64_t i = 42;
@@ -68,8 +130,10 @@ int main(int argc, const char** argv) {
     for(auto &r : network.get_all_routers()){
         if(r->is_null()) continue;
         for(auto &r_p : network.get_all_routers()){
-            if (r == r_p || r_p->is_null()) continue;
-            FastRerouting::make_data_flow(r->get_null_interface(), r_p->get_null_interface(), next_label, cost);
+            Interface *i1, *i2;
+            if (r == r_p || r_p->is_null() ||
+                (i1 = r->get_null_interface()) == nullptr || (i2 = r_p->get_null_interface()) == nullptr) continue;
+            FastRerouting::make_data_flow(i1, i2, next_label, cost);
         }
     }
     // Make reroute for all interfaces
@@ -85,10 +149,19 @@ int main(int argc, const char** argv) {
         network.print_simple(std::cout);
     }
 
-    std::stringstream queries;
-    for (int k = 0; k <= 3; ++k) {
-        // TODO: Make queries(k) on network
-        queries << std::endl;
+    for (size_t k = 0; k <= max_k; ++k) {
+        for (size_t type = 1; type <= 5; ++type) {
+            std::stringstream queries;
+            make_query(network, type, k, queries);
+            auto query_file = name + "-" + std::to_string(size) + "-Q" + std::to_string(type) + "-k" + std::to_string(k) + ".q";
+            std::ofstream out_query(query_file);
+            if (out_query.is_open()) {
+                out_query << queries.rdbuf();
+            } else {
+                std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                exit(-1);
+            }
+        }
     }
 
     auto topo_file = name + "-" + std::to_string(size) + "-topo.xml";
@@ -105,14 +178,6 @@ int main(int argc, const char** argv) {
         network.write_prex_routing(out_route);
     } else {
         std::cerr << "Could not open file " << routing_file << " for writing" << std::endl;
-        exit(-1);
-    }
-    auto query_file = name + "-" + std::to_string(size) + "-queries.q";
-    std::ofstream out_query(query_file);
-    if (out_query.is_open()) {
-        out_query << queries.rdbuf();
-    } else {
-        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
         exit(-1);
     }
 }
