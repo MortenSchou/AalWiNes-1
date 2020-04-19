@@ -12,7 +12,6 @@ print(sys.argv[1:])
 
 bin_hash = sys.argv[1]
 test_data = []
-verification_compilation = []
 test_numbers = []
 moped_win = 0
 post_win = 0
@@ -20,6 +19,7 @@ pre_win = 0
 bin_hash_split = bin_hash.split("-")
 
 for f in listdir("results/" + bin_hash):
+    verification_compilation = []
     with open("results/" + bin_hash + "/" + f) as of1:
         with open("results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E1-R1/" + f) as of1r1:
             with open("results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E1-R2/" + f) as of1r2:
@@ -43,34 +43,43 @@ for f in listdir("results/" + bin_hash):
                                                         #        queries[i].append(
                                                         #            q)
                                                         queries = []
+
+                                                        newFiles = []
+                                                        #Modify file to work
+                                                        #for fi in files:
+                                                        #    line_nr = 0
+                                                        #    writeobject = ""
+                                                        #    for line in fi:
+                                                        #        if line_nr == 6 or line_nr == 7 or line_nr == 8:
+                                                        #            line = line + ','
+                                                        #        writeobject = writeobject + line
+                                                        #        line_nr = line_nr + 1
+                                                        #    newFiles.append(writeobject)
+
+
                                                         for i in range(len(files)):
                                                             jd = json.load(files[i])
-                                                            queries.append(jd["answers"])
+                                                            #jd = json.loads(newFiles[i])
+                                                            queries.append(jd["answers"]["Q1"])
 
 
                                                         # Get universal network stats
-                                                        network_stats = {
-                                                            "Nodes": queries[0]["network_node_size"], "Labels": queries[0]["network_label_size"], "Rules": queries[0]["network_rules_size"]}
-                                                        pda_stats = {
-                                                            "States": queries[0]["pda_states_rules"][0], "Rules": queries[0]["pda_states_rules"][1]}
-                                                        pda_stats_after = {
-                                                            "States_reduction": queries[0]["pda_states_rules_reduction"][0], "Rules_reduction": queries[0]["pda_states_rules_reduction"][1]}
                                                         test_numbers = [int(s[1:])
-                                                                        for s in f.split('_') if s[1:].isdigit()]
+                                                                        for s in f.split('-') if s[1:].isdigit()]
 
                                                         reduction = 0
                                                         engine = 0
-                                                        for qs in range(queries):
-                                                            qn = 0
+                                                        for qs in range(len(queries)):
                                                             reduction = reduction + 1
                                                             if qs % 4:
                                                                 reduction = 0
                                                                 engine = engine + 1
                                                             
                                                             # Adapt Fails to Morten structure
-                                                            Q = test_numbers[1]
-                                                            fails = floor((Q - 1) / 5)
+                                                            Q = test_numbers[0]
+                                                            fails = math.floor((Q - 1) / 5)
                                                             Q_type = (Q - 1) % 5 + 1
+                                                            q = queries[qs]
                                                             verification_compilation.append(
                                                                 {"Engine": engine, "Reduction": reduction, "Failover": fails, "Type": Q_type, "Compilation_verification": q['verification-time'] + q['compilation-time'] + q['reduction-time'],
                                                                     "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"]})
@@ -79,15 +88,17 @@ for f in listdir("results/" + bin_hash):
                                                             verification_compilation, key=lambda k: k['Compilation_verification'])
 
                                                         # Find fastest engine for verification + reduction
-                                                        if sorted_verification_data[0]['Index'] < 7:
+                                                        if sorted_verification_data[0]['Engine'] == 3:
                                                             pre_win = pre_win + 1
-                                                        elif 3 < sorted_verification_data[0]['Index'] >= 7:
+                                                        elif sorted_verification_data[0]['Engine'] == 2:
                                                             post_win = post_win + 1
                                                         else:
                                                             moped_win = moped_win + 1
 
-                                                        test_data.append(
-                                                            {"Network": {test_numbers, network_stats, pda_stats, pda_stats_after}, "Test": test_numbers, "Data": sorted_verification_data})
+                                                        test_data.append({"Network": {"Nodes": queries[0]["network_node_size"], "Labels": queries[0]["network_label_size"], "Rules": queries[0]["network_rules_size"],
+                                                                                      "States": queries[0]["pda_states_rules"][0], "Rules": queries[0]["pda_states_rules"][1],
+                                                                                      "States_reduction": queries[0]["pda_states_rules_reduction"][0], "Rules_reduction": queries[0]["pda_states_rules_reduction"][1]},
+                                                                          "Data": tuple(sorted_verification_data)})
 
                                                     except json.decoder.JSONDecodeError as e:
                                                         print(f)
