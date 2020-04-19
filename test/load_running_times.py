@@ -6,7 +6,7 @@ from os.path import isfile, join
 import math
 import copy
 from sys import stdout
-import pandas as pd
+#import pandas as pd
 
 print(sys.argv[1:])
 
@@ -43,6 +43,10 @@ for f in listdir("results/" + bin_hash):
                                                         #        queries[i].append(
                                                         #            q)
                                                         queries = []
+                                                        for i in range(len(files)):
+                                                            jd = json.load(files[i])
+                                                            queries.append(jd["answers"])
+
 
                                                         # Get universal network stats
                                                         network_stats = {
@@ -96,8 +100,8 @@ print("Moped win:" + str(moped_win))
 print("Post* win:" + str(post_win))
 print("Pre* win:" + str(pre_win))
 
-df = pd.read_json(test_data)
-exportcsv = df.to_csv(r'./test_data.csv', index=None)
+#df = pd.read_json(test_data)
+#exportcsv = df.to_csv(r'./test_data.csv', index=None)
 
 #print("\nLatex Table Rows")
 # for t in sorted_data[:10]:
