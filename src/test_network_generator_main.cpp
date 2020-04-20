@@ -12,38 +12,54 @@
 namespace po = boost::program_options;
 using namespace aalwines;
 
-void make_query(const Network& network, const size_t type, const size_t k, std::ostream& s){
-    // TODO: Come up with good queries
+void make_query(Network& network, const size_t type, const size_t k, std::ostream& s, size_t n){
+    auto size = (network.size() - 1) / n;
     switch (type) {
         default:
         case 1:
-            // Type 1: Find a single step, single stack-size.
+            // Type 1: Find any single step, single stack-size.
             s << "<.> . <.> " << k << " DUAL" << std::endl;
             break;
         case 2:
-            // Type 2
+            // Type 2: Find a path from first to last router.
             s << "<.> ";
-            s << ".";
+            s << "[.#" << network.get_router(0)->name() << "] .* [" << network.get_router(network.size()-1-(n==1?1:0))->name() << "#.]";
             s << " <.> " << k << " DUAL" << std::endl;
             break;
         case 3:
-            // Type 3
+            // Type 3: Go through specific interfaces connecting each layer. (N=1 doesn't really work here...)
             s << "<.> ";
-            s << ".";
-            s << " <.> " << k << " DUAL" << std::endl;
+            for (size_t i = 0, r = 0; i < n - 1; ++i, r+=size) {
+                s << ".* [" << network.get_router(r + (i%size))->name() << "#" << network.get_router(r + (i%size) + size + (i==0?1:0))->name() << "] ";
+                if (i==0) r++;
+            }
+            s << ".* <.> " << k << " DUAL" << std::endl;
             break;
-        case 4:
-            // Type 4
-            s << "<.> ";
-            s << ".";
-            s << " <.> " << k << " DUAL" << std::endl;
+        case 4: {
+            // Type 4: Is there a loop for any interface (OR over all interfaces)
+            s << "<.> .* (";
+            bool first = true;
+            for (auto inf : network.all_interfaces()) {
+                if (inf->source()->is_null() || inf->target()->is_null()) continue;
+                if (!first) {
+                    s << " | ";
+                }
+                s << "([" << inf->source()->name() << "#" << inf->target()->name() << "] .* ["
+                  << inf->source()->name() << "#" << inf->target()->name() << "])";
+                first = false;
+            }
+            s << ") .* <.> " << k << " DUAL" << std::endl;
             break;
-        case 5:
-            // Type 5
-            s << "<.> ";
-            s << ".";
-            s << " <.> " << k << " DUAL" << std::endl;
+        }
+        case 5: {
+            // Type 5: A detour for the 'middle' interface.
+            auto inf = network.all_interfaces()[network.all_interfaces().size()/2];
+            s << "<.> "
+              << "[.#" << inf->source()->name() << "] [^" << inf->source()->name() << "#" << inf->target()->name()
+              << "]+ [" << inf->target()->name() << "#.]"
+              << " <.> " << k << " DUAL" << std::endl;
             break;
+        }
     }
 }
 
@@ -86,13 +102,13 @@ int main(int argc, const char** argv) {
             ("zoo,z", po::value<std::string>(&topo_zoo),"A gml-file defining the topology in the format from topology zoo")
             ;
     opts.add(input);
-    size_t size = 1;
+    size_t N = 1;
     size_t max_k = 3;
     bool dot_graph = false;
     bool print_simple = false;
     po::options_description generate("Test Options");
     generate.add_options()
-            ("size,N", po::value<size_t>(&size), "the size variable (N)")
+            ("size,N", po::value<size_t>(&N), "the size variable (N)")
             ("max_k,k", po::value<size_t>(&max_k), "the maximal number of failures (k) for the queries generated")
             ("dot,d", po::bool_switch(&dot_graph), "print dot graph output")
             ("print_simple,p", po::bool_switch(&print_simple), "print simple routing output")
@@ -117,15 +133,17 @@ int main(int argc, const char** argv) {
         name = topo_zoo;
     }
 
+    auto size = N * N; // Make it quadratic in N.
+
     auto network = make_large([&topo_zoo](){ return TopologyZooBuilder::parse(topo_zoo); }, size);
 
     // Construct routes on network
     uint64_t i = 42;
     auto next_label = [&i](){return Query::label_t(Query::type_t::MPLS, 0, i++);};
-    // TODO: Consider if cost=distance works for this??
     auto cost = [](const Interface* interface){
         return interface->source()->coordinate() && interface->target()->coordinate() ?
-        interface->source()->coordinate()->distance_to(interface->target()->coordinate().value()) : 1 ; };
+               (interface->source()->coordinate().value() == interface->target()->coordinate().value() ? 100 : // 100 km between layers.
+        interface->source()->coordinate()->distance_to(interface->target()->coordinate().value())) : 1000; }; // 1000 km if they don't have coordinates.
     // Make data flow for all pairs of routers.
     for(auto &r : network.get_all_routers()){
         if(r->is_null()) continue;
@@ -152,8 +170,8 @@ int main(int argc, const char** argv) {
     for (size_t k = 0; k <= max_k; ++k) {
         for (size_t type = 1; type <= 5; ++type) {
             std::stringstream queries;
-            make_query(network, type, k, queries);
-            auto query_file = name + "-" + std::to_string(size) + "-Q" + std::to_string(type) + "-k" + std::to_string(k) + ".q";
+            make_query(network, type, k, queries, size);
+            auto query_file = name + "-" + std::to_string(N) + "-Q" + std::to_string(type) + "-k" + std::to_string(k) + ".q";
             std::ofstream out_query(query_file);
             if (out_query.is_open()) {
                 out_query << queries.rdbuf();
@@ -164,7 +182,7 @@ int main(int argc, const char** argv) {
         }
     }
 
-    auto topo_file = name + "-" + std::to_string(size) + "-topo.xml";
+    auto topo_file = name + "-" + std::to_string(N) + "-topo.xml";
     std::ofstream out_topo(topo_file);
     if (out_topo.is_open()) {
         network.write_prex_topology(out_topo);
@@ -172,7 +190,7 @@ int main(int argc, const char** argv) {
         std::cerr << "Could not open file " << topo_file << " for writing" << std::endl;
         exit(-1);
     }
-    auto routing_file = name + "-" + std::to_string(size) + "-routing.xml";
+    auto routing_file = name + "-" + std::to_string(N) + "-routing.xml";
     std::ofstream out_route(routing_file);
     if (out_route.is_open()) {
         network.write_prex_routing(out_route);
