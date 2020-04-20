@@ -46,3 +46,4 @@ src/aalwines/query/*.hh
 
 # Tests
 test/performance_test_networks/
+test/results/
