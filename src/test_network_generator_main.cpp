@@ -133,7 +133,7 @@ int main(int argc, const char** argv) {
         name = topo_zoo;
     }
 
-    auto size = N * N; // Make it quadratic in N.
+    auto size = N; // Make it linear in N. // We tried quadratic, it was too much.
 
     auto network = make_large([&topo_zoo](){ return TopologyZooBuilder::parse(topo_zoo); }, size);
 
