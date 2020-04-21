@@ -9,6 +9,12 @@
 #include <aalwines/synthesis/FastRerouting.h>
 #include <fstream>
 #include <iostream>
+#include <pdaaal/SolverAdapter.h>
+#include <aalwines/model/NetworkPDAFactory.h>
+#include <aalwines/query/QueryBuilder.h>
+#include <pdaaal/Reducer.h>
+#include <aalwines/utils/outcome.h>
+
 
 using namespace aalwines;
 
@@ -34,24 +40,63 @@ BOOST_AUTO_TEST_CASE(OverApproximationTest) {
     success = FastRerouting::make_reroute(network.get_router(1)->find_interface(names[2]), next_label);
     BOOST_CHECK_EQUAL(success, true);
 
-    network.print_simple(std::cout);
+    Builder builder(network);
+    {
+        std::string query(   "<[42]> [.#Router1] .* [.#Router4] .* [.#Router6] .* [Router3#.] <[45]> 0 DUAL\n"
+                                "<[42]> [.#Router1] .* [.#Router4] .* [.#Router6] .* [Router3#.] <[45]> 2 DUAL\n"
+                                "<[42]> [.#Router1] .* [.#Router4] .* [.#Router6] .* [Router3#.] <[45]> 2 DUAL\n");
 
-    // TODO: Use verification here instead of printing to files.
-    std::string name = "over-approx-example";
-    auto topo_file = name + "-topo.xml";
-    std::ofstream out_topo(topo_file);
-    BOOST_CHECK_EQUAL(out_topo.is_open(), true);
-    network.write_prex_topology(out_topo);
+        std::istringstream out_query(query);
+        builder.do_parse(out_query);
+        int query_no = 0;
+        pdaaal::SolverAdapter solver;
+        std::stringstream proof;
 
-    auto routing_file = name + "-routing.xml";
-    std::ofstream out_route(routing_file);
-    BOOST_CHECK_EQUAL(out_route.is_open(), true);
-    network.write_prex_routing(out_route);
+        for(auto& q : builder._result) {
+            std::cout << "\nQ" << query_no++ << std::endl;
+            utils::outcome_t result = utils::MAYBE;
+            std::vector<Query::mode_t> modes{q.approximation()};
+            bool was_dual = q.approximation() == Query::DUAL;
+            if (was_dual)
+                modes = std::vector<Query::mode_t>{Query::OVER, Query::UNDER};
 
-    auto query_file = name + "-query.q";
-    std::ofstream out_query(query_file);
-    BOOST_CHECK_EQUAL(out_query.is_open(), true);
-    out_query << "<[42]> [.#Router1] .* [.#Router4] .* [.#Router6] .* [Router3#.] <[45]> 0 DUAL" << std::endl;
-    out_query << "<[42]> [.#Router1] .* [.#Router4] .* [.#Router6] .* [Router3#.] <[45]> 1 DUAL" << std::endl;
-    out_query << "<[42]> [.#Router1] .* [.#Router4] .* [.#Router6] .* [Router3#.] <[45]> 2 DUAL" << std::endl;
+            std::pair<size_t, size_t> reduction;
+            std::vector<pdaaal::TypedPDA<Query::label_t>::tracestate_t> trace;
+
+            for (auto m : modes) {
+                q.set_approximation(m);
+                NetworkPDAFactory factory(q, network, false);
+                auto pda = factory.compile();
+                reduction = pdaaal::Reducer::reduce(pda, 0, pda.initial(), pda.terminal());
+
+                auto solver_result1 = solver.post_star<pdaaal::Trace_Type::Any>(pda);
+                bool engine_outcome = solver_result1.first;
+
+                if (engine_outcome) {
+                    trace = solver.get_trace(pda, std::move(solver_result1.second));
+                    if (factory.write_json_trace(std::cout, trace))
+                        result = utils::YES;
+                }
+                if (q.number_of_failures() == 0)
+                    result = engine_outcome ? utils::YES : utils::NO;
+
+                if (result == utils::MAYBE && m == Query::OVER && !engine_outcome)
+                    result = utils::NO;
+                if (result != utils::MAYBE)
+                    break;
+            }
+            switch (result) {
+                case utils::MAYBE:
+                    std::cout << "null";
+                    break;
+                case utils::NO:
+                    std::cout << "false";
+                    break;
+                case utils::YES:
+                    std::cout << "true";
+                    break;
+            }
+            std::cout << proof.str();
+        }
+    }
 }
