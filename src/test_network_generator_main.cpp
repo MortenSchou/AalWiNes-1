@@ -4,7 +4,7 @@
 
 #include <aalwines/model/builders/TopologyZooBuilder.h>
 #include <aalwines/model/Network.h>
-#include <aalwines/synthesis/FastRerouting.h>
+#include <aalwines/synthesis/RouteConstruction.h>
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
@@ -151,13 +151,13 @@ int main(int argc, const char** argv) {
             Interface *i1, *i2;
             if (r == r_p || r_p->is_null() ||
                 (i1 = r->get_null_interface()) == nullptr || (i2 = r_p->get_null_interface()) == nullptr) continue;
-            FastRerouting::make_data_flow(i1, i2, next_label, cost);
+            RouteConstruction::make_data_flow(i1, i2, next_label, cost);
         }
     }
     // Make reroute for all interfaces
     for(auto& inf : network.all_interfaces()){
         if (inf->target()->is_null() || inf->source()->is_null()) continue;
-        FastRerouting::make_reroute(inf, next_label, cost);
+        RouteConstruction::make_reroute(inf, next_label, cost);
     }
 
     if (dot_graph) {

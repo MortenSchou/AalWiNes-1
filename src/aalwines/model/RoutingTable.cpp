@@ -60,7 +60,7 @@ namespace aalwines
     void RoutingTable::add_rule(label_t top_label, action_t op, Interface* via, size_t weight, type_t type) {
         add_rule(top_label, forward_t(type, {op}, via, weight));
     }
-    void RoutingTable::forward_t::add_action(action_t action) {
+    void RoutingTable::forward_t::add_action(action_t action) { // This function applies reductions to the operation list when adding new actions.
         if (_ops.empty()) {
             _ops.push_back(action);
             return;
@@ -110,13 +110,6 @@ namespace aalwines
             }
         }
     }
-    void RoutingTable::add_to_outgoing(const Interface* outgoing, label_t top_label, action_t action) {
-        for (auto& e : _entries) {
-            if (e._top_label == top_label) {
-                e.add_to_outgoing(outgoing, action);
-            }
-        }
-    }
     void RoutingTable::add_to_outgoing(const Interface* outgoing, action_t action) {
         for (auto& e : _entries) {
             e.add_to_outgoing(outgoing, action);
@@ -154,13 +147,13 @@ namespace aalwines
                     e._rules[0]._type == iit->_rules[0]._type && iit->_rules[0]._type != MPLS)
                     continue;
                 bool legal_merge = true;
-                for (auto&& rule: e._rules) { // TODO: Consider sorted rules for faster merge.
+                for (const auto& rule : e._rules) { // TODO: Consider sorted rules for faster merge.
                     // Already exists
                     if (std::find(iit->_rules.begin(), iit->_rules.end(), rule) != iit->_rules.end()) continue;
                     // Different traffic engineering group
                     if (std::find_if(iit->_rules.begin(), iit->_rules.end(),
-                            [w = rule._weight](const forward_t& r){ return r._weight == w; })
-                            == iit->_rules.end()) {
+                                     [w = rule._weight](const forward_t& r){ return r._weight == w; })
+                        == iit->_rules.end()) {
                         iit->_rules.push_back(rule);
                     } else {
                         legal_merge = false;
@@ -255,7 +248,7 @@ namespace aalwines
     }
     bool RoutingTable::forward_t::operator==(const forward_t& other) const {
         return _type == other._type && _via == other._via && _weight == other._weight
-            && _ops.size() == other._ops.size() && std::equal(_ops.begin(), _ops.end(), other._ops.begin());
+               && _ops.size() == other._ops.size() && std::equal(_ops.begin(), _ops.end(), other._ops.begin());
     }
     bool RoutingTable::forward_t::operator!=(const forward_t& other) const {
         return !(*this == other);

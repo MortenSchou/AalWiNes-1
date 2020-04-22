@@ -44,7 +44,11 @@ if (AALWINES_GetDependencies)
         CONFIGURE_COMMAND ""
         INSTALL_COMMAND cd ../rapidxml-ext && ${CMAKE_COMMAND} -E copy rapidxml.hpp rapidxml_iterators.hpp rapidxml_print.hpp rapidxml_utils.hpp ${EXTERNAL_INSTALL_LOCATION}/include 
     )
-
+    file(DOWNLOAD
+            https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp
+            ${EXTERNAL_INSTALL_LOCATION}/include/json.hpp
+            EXPECTED_HASH SHA256=3b5d2b8f8282b80557091514d8ab97e27f9574336c804ee666fda673a9b59926
+    )
     ExternalProject_add(pdaaal-ext
         GIT_REPOSITORY git@github.com:DEIS-Tools/PDAAAL.git
         GIT_TAG 42db04e1843d969c475e837c9a37f6879e1367d3
@@ -73,5 +77,6 @@ if(BUILD_TESTING AND AALWINES_BuildTests)
     add_subdirectory(${CMAKE_SOURCE_DIR}/test/)
     enable_testing()
     add_test(NAME SyntacticNetwork    COMMAND SyntacticNetwork)
-    add_test(NAME FastRerouting       COMMAND FastRerouting)
+    add_test(NAME RouteConstruction   COMMAND RouteConstruction)
+    add_test(NAME QueryTest           COMMAND QueryTest)
 endif()

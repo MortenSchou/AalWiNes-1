@@ -29,7 +29,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <aalwines/synthesis/FastRerouting.h>
+#include <aalwines/synthesis/RouteConstruction.h>
 
 namespace po = boost::program_options;
 using namespace aalwines;
@@ -90,7 +90,7 @@ int main(int argc, const char** argv)
         if(r->is_null()) continue;
         for(auto &r_p : network.get_all_routers()){
             if (r == r_p || r_p->is_null()) continue;
-            auto success = FastRerouting::make_data_flow(r->get_null_interface(), r_p->get_null_interface(), next_label, cost);
+            auto success = RouteConstruction::make_data_flow(r->get_null_interface(), r_p->get_null_interface(), next_label, cost);
             if(!success){
                 unlinked_routers.emplace_back(std::make_pair(r.get(), r_p.get()));
             }
@@ -98,7 +98,7 @@ int main(int argc, const char** argv)
     }
     for(auto& inf : network.all_interfaces()){
         if (inf->target()->is_null() || inf->source()->is_null()) continue;
-        FastRerouting::make_reroute(inf, next_label, cost);
+        RouteConstruction::make_reroute(inf, next_label, cost);
     }
 
     std::ofstream out_topo(topology_destination);

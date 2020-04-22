@@ -3,7 +3,7 @@
 //
 
 #include <aalwines/model/Network.h>
-#include <aalwines/synthesis/FastRerouting.h>
+#include <aalwines/synthesis/RouteConstruction.h>
 #include <boost/program_options/options_description.hpp>
 #include <fstream>
 #include <random>
@@ -124,7 +124,7 @@ SyntheticNetwork make_base(label_generator& labels) {
             auto interface2 = r2->get_null_interface();
             if (interface2 == nullptr) continue;
             auto pre_label = labels.peek();
-            FastRerouting::make_data_flow(interface1, interface2, labels.next_fn());
+            RouteConstruction::make_data_flow(interface1, interface2, labels.next_fn());
             auto post_label = labels.current();
             // Store pre and post labels for flows:
             // Inject-flow: 0 -> 4
@@ -145,8 +145,8 @@ SyntheticNetwork make_base(label_generator& labels) {
         }
     }
     // Make reroute for links: 1 -> 3 and 2 -> 4.
-    FastRerouting::make_reroute(network.get_router(1)->find_interface("Router3"), labels.next_fn());
-    FastRerouting::make_reroute(network.get_router(2)->find_interface("Router4"), labels.next_fn());
+    RouteConstruction::make_reroute(network.get_router(1)->find_interface("Router3"), labels.next_fn());
+    RouteConstruction::make_reroute(network.get_router(2)->find_interface("Router4"), labels.next_fn());
 
     return SyntheticNetwork(std::move(network), std::move(inject_flow_start), std::move(inject_flow_end),
                             middle_interface, std::move(concat_flow_starts), std::move(concat_flow_ends));
