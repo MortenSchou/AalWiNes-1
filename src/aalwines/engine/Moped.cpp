@@ -69,11 +69,14 @@ namespace pdaaal
     bool Moped::parse_result(const std::string& result, bool build_trace)
     {
         bool res = false;
-        if(result.substr(0, 4) == "YES.")
+        std::istringstream is(result);
+        std::string buffer;
+        getline(is, buffer);
+        if(buffer == "YES.")
         {
             res = true;
         }
-        else if(result.substr(0, 3) == "NO.")
+        else if(buffer == "NO.")
         {
             res = false;
         }
@@ -86,11 +89,9 @@ namespace pdaaal
         _raw_trace.clear();
         if(build_trace && res)
         {
-            std::istringstream is(result);
             bool saw_start = false;
             bool saw_init = false;
             bool saw_end = false;
-            std::string buffer;
             while(std::getline(is, buffer))
             {
                 if(buffer.empty()) continue;
@@ -110,15 +111,7 @@ namespace pdaaal
                     }
                     else if(buffer.substr(2, 18) == "[ target reached ]" && saw_init && saw_end)
                     {
-                        try{
-                            std::getline(is, buffer);
-                            _moped_verification_time_output = std::stod(buffer);
-                            break;
-                        }  catch (...) {
-                            _moped_verification_time_output = _verification_time.duration();
-                            std::cerr << "The provided Moped engine does not support engine verification time." << std::endl;
-                            break;
-                        }
+                        break;
                     }
                     else
                     {
@@ -141,6 +134,13 @@ namespace pdaaal
                 e << "Missing accepting state in trace from Moped\n\n" << result;
                 throw base_error(e.str());                                        
             }
+        }
+        std::getline(is, buffer);
+        if(!buffer.empty()){
+            _moped_verification_time_output = std::atof(buffer.c_str());
+        } else {
+            _moped_verification_time_output = _verification_time.duration();
+            std::cerr << "The provided Moped engine does not support engine verification time." << std::endl;
         }
         return res;
     }
