@@ -47,3 +47,6 @@ src/aalwines/query/*.hh
 # Tests
 test/performance_test_networks/
 test/results/
+test/load_running_times.py
+venv/
+
