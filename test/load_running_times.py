@@ -128,7 +128,7 @@ with file:
                 q = q['Data']
                 verification_compilation.append(
                     {"Engine": engine, "Reduction": reduction, "Total": q['verification-time'] + q['compilation-time'] + q['reduction-time'],
-                        "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"]})
+                        "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"], "Output": q['result']})
                 
                 if len([s for s in queries if s['Engine'] == engine]) == 4:
                     writer.writerow({'Network': test_name[0], 'Size-factor': test_name[1], 'Nodes': q['network_node_size'], 'Labels': q['network_label_size'],
@@ -265,21 +265,6 @@ print("Reduction1 win:" + str(red1_win))
 print("Reduction2 win:" + str(red2_win))
 print("Reduction3 win:" + str(red3_win))
 
-for t in sorted_test_data[:10]:
-    print(str(t['Network']['Nodes']) + "&" + str(t['Network']['Rules']) + "&" + str(t['Network']['Labels']) + "&" +
-          str(t['Query']['Type']) + ";" + str(t['Query']['Failover']) + "&" +
-          str(t['Verification'][0]['Engine']) + "&" + str(t['Verification'][0]['Reduction']) + "&" + str(round(t['Verification'][0]['Verification-time'], 5)) + "&" + str(round(t['Verification'][0]['Total'], 3)) +
-          "\\\ \hline")
-
-print("last 10")
-
-for t in sorted_test_data[len(test_data)-10:]:
-    print(str(t['Network']['Nodes']) + "&" + str(t['Network']['Rules']) + "&" + str(t['Network']['Labels']) + "&" +
-          str(t['Query']['Type']) + ";" + str(t['Query']['Failover']) + "&" +
-          str(t['Verification'][0]['Engine']) + "&" + str(t['Verification'][0]['Reduction']) + "&" + str(round(t['Verification'][0]['Verification-time'], 5)) + "&" + str(round(t['Verification'][0]['Total'], 3)) +
-          "\\\ \hline")
-
-
 #Latex print fastest reduction on fastest engine = 2 :)
 bufferNetworks = []
 buffer = {"Network": reductions[0]['Network'], "R0": 0, "R1": 0, "R2": 0, "R3": 0}
@@ -309,47 +294,62 @@ for buffer in bufferNetworks:
         print(buffer['Network'] + "&" + str(round(buffer['R0'],3)) + "&" + str(round(buffer['R1'],3)) + "&" + str(round(buffer['R2'],3)) + "&" + str(round(buffer['R3'],3))+ "&" + str(round(speedup,3)) + "\\\ \hline")
 
 #Latex print fastest engine on fastest reducktion = 0
-
-engine_ratio_moped_post = []
-engine_ratio_moped_pre = []
-engine_ratio_post_pre = []
-
 def get_ratio(engineA, engineB):
     engine_ratio = []
+    engine_ratio_false = []
+
     for t in test_data:
         i = -1
+        
         for r in ["R0", "R1", "R2", "R3"]:
             try:
                 first = next(s for s in t['Verification'] if s['Engine'] == engineA and s['Reduction'] == r)
                 fastest_time = first['Verification-time']
                 next_veri = next(s for s in t['Verification'] if s['Engine'] == engineB and s['Reduction'] == r)
+                #Remove very fast cases on both engines
+                if  next_veri['Verification-time'] < 0.5 and fastest_time < 0.5: continue
                 if  abs(next_veri['Verification-time'] - fastest_time) < 0.001: continue
             except:
                 continue
             try:
                 ratio =  fastest_time / next_veri['Verification-time']
-                engine_ratio.append({"Test": t, "FT": fastest_time, "R": r, "NT": next_veri['Verification-time'], "NE": next_veri['Engine'], "Ratio": ratio})
+                #Get and print Output result
+                if first['Output'] == True:
+                    engine_ratio.append({"Test": t, "FT": fastest_time, "R": r, "NT": next_veri['Verification-time'], "NE": next_veri['Engine'], "Ratio": ratio})
+                else:
+                    engine_ratio_false.append({"Test": t, "FT": fastest_time, "R": r, "NT": next_veri['Verification-time'], "NE": next_veri['Engine'], "Ratio": ratio})
             except:
                 print("some")
-    sorted_engine_ratio = sorted(engine_ratio, key=lambda k: k['Ratio'])
-    print("Fastest engine" + engineA + engineB)
-    print("\\begin{table}[H]\n\\centering\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
-    for t in sorted_engine_ratio[:5]:
-        print(str(t['Test']['Network']['Nodes']) + "&" +  str(t['Test']['Network']['Rules']) + "&" + str(t['Test']['Network']['Labels']) 
+                    
+    def printline(list, bi, ei):
+        sorted_engine_ratio = sorted(list, key=lambda k: k['Ratio'])
+        for t in sorted_engine_ratio[bi:ei]:
+            print(str(t['Test']['Network']['Nodes']) + "&" +  str(t['Test']['Network']['Rules']) + "&" + str(t['Test']['Network']['Labels']) 
                 + "&" + str(t['Test']['Network']['States_reduction']) + "&" + str(t['Test']['Network']['Rules_reduction']) + "&" + str(t['Test']['Query']) + "&" + str(t['R'])
                 + "&" + str(round(t['FT'], 4)) + "&" + str(round(t['NT'], 4)) + "&" + str(round(t['Ratio'], 4)) + "\\\ \hline")
+        print("$\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$\\\ \hline")
 
-    print("$\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$\\\ \hline")
-    mid = int(len(sorted_engine_ratio)/2)
-    for t in sorted_engine_ratio[mid : mid+5]:
-        print(str(t['Test']['Network']['Nodes']) + "&" +  str(t['Test']['Network']['Rules']) + "&" + str(t['Test']['Network']['Labels']) 
-                + "&" + str(t['Test']['Network']['States_reduction']) + "&" + str(t['Test']['Network']['Rules_reduction']) + "&" + str(t['Test']['Query']) + "&" + str(t['R'])
-                + "&" + str(round(t['FT'], 4)) + "&" + str(round(t['NT'], 4)) + "&" + str(round(t['Ratio'], 4)) + "\\\ \hline")
-    print("$\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$\\\ \hline")
-    for t in sorted_engine_ratio[len(sorted_engine_ratio)-5:]:
-        print(str(t['Test']['Network']['Nodes']) + "&" +  str(t['Test']['Network']['Rules']) + "&" + str(t['Test']['Network']['Labels']) 
-                + "&" + str(t['Test']['Network']['States_reduction']) + "&" + str(t['Test']['Network']['Rules_reduction']) + "&" + str(t['Test']['Query']) + "&" + str(t['R'])
-                + "&" + str(round(t['FT'], 4)) + "&" + str(round(t['NT'], 4)) + "&" + str(round(t['Ratio'], 4)) + "\\\ \hline")
+
+    print("True")
+
+    print(engineA + engineB)
+    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
+
+    printline(engine_ratio, 0, 5)
+    mid = int(len(engine_ratio)/2)
+    printline(engine_ratio, mid, mid + 5)
+    last = int(len(engine_ratio))
+    printline(engine_ratio, last - 10, last)
+
+    print("False")
+
+    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
+    printline(engine_ratio_false, 0, 5)
+    mid = int(len(engine_ratio_false)/2)
+    printline(engine_ratio_false, mid, mid + 5)
+    last = int(len(engine_ratio_false))
+    printline(engine_ratio_false, last - 10, last)
+
 
 get_ratio("E1","E2")
 get_ratio("E1","E3")
