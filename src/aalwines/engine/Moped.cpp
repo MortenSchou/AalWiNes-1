@@ -98,11 +98,12 @@ namespace pdaaal
                 if(buffer.empty()) continue;
                 if(saw_start)
                 {
-                    if(buffer[0] == 'I' && !saw_init && !saw_end)
+                    if(buffer[0] == 'D' || buffer[2] == '[') continue;
+                    else if(buffer[0] == 'I' && !saw_init && !saw_end)
                     {
                         saw_init = true;
                     }
-                    else if((buffer[0] == 'D' && saw_init && !saw_end) || buffer.substr(buffer.size()-3, buffer.size()-1) == "<_>")
+                    else if(buffer.substr(0, 11) == "--- END ---")
                     {
                         saw_end = true;
                     }
@@ -110,7 +111,7 @@ namespace pdaaal
                     {
                         _raw_trace.push_back(buffer);
                     }
-                    else if(buffer.substr(2, 18) == "[ target reached ]" && saw_init && saw_end)
+                    else if(saw_init && saw_end)
                     {
                         break;
                     }
