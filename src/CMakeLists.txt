@@ -22,7 +22,16 @@ add_dependencies(aalwines ptrie-ext rapidxml-ext pdaaal-ext)
 target_link_libraries(aalwines PRIVATE ${Boost_LIBRARIES} pdaaal)
 target_include_directories(aalwines PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(aalwines-bin main.cpp)
+if (AALWINES_BuildBundle_MI)
+	set(MIMALLOC-OBJ ${MIMALLOC_PATH}/mimalloc.o)
+	add_executable(aalwines-bin ${MIMALLOC-OBJ} main.cpp)
+	add_dependencies(aalwines-bin mimalloc-ext)
+	set_source_files_properties(${MIMALLOC-OBJ} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+	target_link_libraries(aalwines-bin PUBLIC pthread)
+else()
+	add_executable(aalwines-bin main.cpp)
+endif(AALWINES_BuildBundle_MI)
+
 target_link_libraries(aalwines-bin PRIVATE aalwines)
 set_target_properties(aalwines-bin PROPERTIES OUTPUT_NAME aalwines)
 install(TARGETS aalwines aalwines-bin
