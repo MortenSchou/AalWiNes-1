@@ -33,7 +33,7 @@
 #include <memory>
 
 #include <ptrie/ptrie_map.h>
-#include "aalwines/utils/coordinate.h"
+#include <aalwines/utils/coordinate.h>
 
 #include "RoutingTable.h"
 

@@ -13,6 +13,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 project(aalwines VERSION 1.0.0 LANGUAGES CXX C)
 
 option(AALWINES_BuildBundle "Includes all but system libraries within the binary." OFF)
+option(AALWINES_BuildBundle_MI "Includes all but system libraries, and use mimalloc as memory allocator." OFF)
+if (AALWINES_BuildBundle_MI)
+    set(AALWINES_BuildBundle ON)
+endif(AALWINES_BuildBundle_MI)
+
 if (AALWINES_BuildBundle)
     set(BUILD_SHARED_LIBS OFF)
     set(Boost_USE_STATIC_LIBS ON)
@@ -49,6 +54,17 @@ if (AALWINES_GetDependencies)
             ${EXTERNAL_INSTALL_LOCATION}/include/json.hpp
             EXPECTED_HASH SHA256=3b5d2b8f8282b80557091514d8ab97e27f9574336c804ee666fda673a9b59926
     )
+
+    if (AALWINES_BuildBundle_MI)
+        ExternalProject_add(mimalloc-ext
+            URL https://github.com/microsoft/mimalloc/archive/v1.6.2.zip
+            URL_HASH SHA512=96518451e600f9ea718e16bb06d42c14268234ffe73ff8c6a11119a4684016656f7ad2f2b20790a951da3cf79dc18707d1f4e9995d0c742f00ab8cf3fa1ee248
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION} -DMI_BUILD_TESTS=OFF
+        )
+        include_directories(${EXTERNAL_INSTALL_LOCATION}/lib/mimalloc-1.6/include)
+        set(MIMALLOC_PATH ${EXTERNAL_INSTALL_LOCATION}/lib/mimalloc-1.6)
+    endif(AALWINES_BuildBundle_MI)
+
     ExternalProject_add(pdaaal-ext
         GIT_REPOSITORY git@github.com:DEIS-Tools/PDAAAL.git
         GIT_TAG 42db04e1843d969c475e837c9a37f6879e1367d3
