@@ -8,6 +8,7 @@
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 
 namespace po = boost::program_options;
 using namespace aalwines;
@@ -63,6 +64,107 @@ void make_query(Network& network, const size_t type, const size_t k, std::ostrea
     }
 }
 
+void make_query2(Network& network, const size_t type, const size_t k, const std::string& name, bool mpls) {
+    std::string dot, dot_star, dot_dot_plus;
+    if (mpls) {
+        dot = "<smpls ip>";
+        dot_star = "<(mpls* smpls)? ip>";
+        dot_dot_plus = "<mpls+ smpls ip>";
+    } else {
+        dot = "<.>";
+        dot_star = "<.*>";
+        dot_dot_plus = "<.+ .>";
+    }
+    switch (type) {
+        default:
+        case 1: { // Transparency: <.> X .* Y <.* . .> k
+            for(auto &r_x : network.get_all_routers()){
+                if(r_x->is_null()) continue;
+                for(auto &r_y : network.get_all_routers()){
+                    if (r_y->is_null()) continue;
+                    auto query_file = name + "k" + std::to_string(k) + "-transparency-" + r_x->name() + "-" + r_y->name() + ".q";
+                    std::ofstream out_query(query_file);
+                    if (out_query.is_open()) {
+                        out_query << dot << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_dot_plus << " " << k << " DUAL" << std::endl;
+                    } else {
+                        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                        exit(-1);
+                    }
+                }
+            }
+            break;
+        }
+        case 2: { // Waypointing: <.*> X [^Z]* Y <.*>
+            for(auto &r_x : network.get_all_routers()){
+                if(r_x->is_null()) continue;
+                for(auto &r_y : network.get_all_routers()){
+                    if (r_x == r_y || r_y->is_null()) continue;
+                    for(auto &r_z : network.get_all_routers()) {
+                        if (r_x == r_z || r_y == r_z || r_z->is_null()) continue;
+                        auto query_file = name + "k" + std::to_string(k) + "-waypoint-" + r_x->name() + "-" + r_z->name() + "-" + r_y->name() + ".q";
+                        std::ofstream out_query(query_file);
+                        if (out_query.is_open()) {
+                            out_query << dot_star << " [.#" << r_x->name() << "] [^.#" << r_z->name() << "]* [" << r_y->name() << "#.] " << dot_star << " " << k << " DUAL" << std::endl;
+                        } else {
+                            std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                            exit(-1);
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        case 3: { // Reachability: <.*> X .* Y <.*>
+            for(auto &r_x : network.get_all_routers()){
+                if(r_x->is_null()) continue;
+                for(auto &r_y : network.get_all_routers()){
+                    if (r_x == r_y || r_y->is_null()) continue;
+                    auto query_file = name + "k" + std::to_string(k) + "-reachability-" + r_x->name() + "-" + r_y->name() + ".q";
+                    std::ofstream out_query(query_file);
+                    if (out_query.is_open()) {
+                        out_query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_star << " " << k << " DUAL" << std::endl;
+                    } else {
+                        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                        exit(-1);
+                    }
+                }
+            }
+            break;
+        }
+        case 4: { // <.*> X .* Y <.>
+            for(auto &r_x : network.get_all_routers()){
+                if(r_x->is_null()) continue;
+                for(auto &r_y : network.get_all_routers()){
+                    if (r_x == r_y || r_y->is_null()) continue;
+                    auto query_file = name + "k" + std::to_string(k) + "-startosingle-" + r_x->name() + "-" + r_y->name() + ".q";
+                    std::ofstream out_query(query_file);
+                    if (out_query.is_open()) {
+                        out_query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot << " " << k << " DUAL" << std::endl;
+                    } else {
+                        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                        exit(-1);
+                    }
+                }
+            }
+            break;
+        }
+        case 5: { // Loop: <.*> X .+ X <.*>
+            for(auto &r_x : network.get_all_routers()) {
+                if (r_x->is_null()) continue;
+                auto query_file = name + "k" + std::to_string(k) + "-loop-" + r_x->name() + ".q";
+                std::ofstream out_query(query_file);
+                if (out_query.is_open()) {
+                    out_query << dot_star << " [.#" << r_x->name() << "] .+ [" << r_x->name() << "#.] " << dot_star << " " << k << " DUAL" << std::endl;
+                } else {
+                    std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
+                    exit(-1);
+                }
+            }
+            break;
+        }
+    }
+}
+
 Network make_large(const std::function<Network()>& make_base, size_t n) { // Use parse function, since Network doesn't currently have a copy-constructor.
     assert(n != 0);
     if (n == 1) {
@@ -104,12 +206,14 @@ int main(int argc, const char** argv) {
     opts.add(input);
     size_t N = 1;
     size_t max_k = 3;
+    bool mpls = false;
     bool dot_graph = false;
     bool print_simple = false;
     po::options_description generate("Test Options");
     generate.add_options()
             ("size,N", po::value<size_t>(&N), "the size variable (N)")
             ("max_k,k", po::value<size_t>(&max_k), "the maximal number of failures (k) for the queries generated")
+            ("mpls,m", po::bool_switch(&mpls), "Use mpls smpls and ip instead of wilcard <.>")
             ("dot,d", po::bool_switch(&dot_graph), "print dot graph output")
             ("print_simple,p", po::bool_switch(&print_simple), "print simple routing output")
             ;
@@ -169,16 +273,8 @@ int main(int argc, const char** argv) {
 
     for (size_t k = 0; k <= max_k; ++k) {
         for (size_t type = 1; type <= 5; ++type) {
-            std::stringstream queries;
-            make_query(network, type, k, queries, size);
-            auto query_file = name + "-" + std::to_string(N) + "-Q" + std::to_string(type) + "-k" + std::to_string(k) + ".q";
-            std::ofstream out_query(query_file);
-            if (out_query.is_open()) {
-                out_query << queries.rdbuf();
-            } else {
-                std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
-                exit(-1);
-            }
+            std::filesystem::create_directory(name + "-" + std::to_string(N));
+            make_query2(network, type, k, name + "-" + std::to_string(N) + "/", mpls);
         }
     }
 
