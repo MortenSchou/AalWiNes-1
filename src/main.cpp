@@ -115,6 +115,16 @@ bool do_verification(stopwatch& compilation_time, stopwatch& reduction_time, sto
             }
             break;
         }
+        case 4: {
+            engine_outcome = moped.verify(pda, need_trace, true);
+            verification_time.stop();
+            if (need_trace && engine_outcome) {
+                trace = moped.get_trace(pda);
+                if (factory.write_json_trace(proof, trace))
+                    result = utils::YES;
+            }
+        }
+        break;
         default:
             throw base_error("Unsupported --engine value given");
     }
@@ -186,7 +196,7 @@ int main(int argc, const char** argv)
             ("no-ip-route", po::bool_switch(&no_ip_swap), "Disable encoding of routing via IP")
             ("link,l", po::value<unsigned int>(&link_failures), "Number of link-failures to model.")
             ("tos-reduction,r", po::value<size_t>(&tos), "0=none,1=simple,2=dual-stack,3=dual-stack+backup")
-            ("engine,e", po::value<size_t>(&engine), "0=no verification,1=moped,2=post*,3=pre*")
+            ("engine,e", po::value<size_t>(&engine), "0=no verification,1=moped_post*,2=post*,3=pre*,4=moped_pre*")
             ("weight,w", po::value<std::string>(&weight_file), "A file containing the weight function expression")
             ;    
     
@@ -209,7 +219,7 @@ int main(int argc, const char** argv)
         exit(-1);
     }
     
-    if(engine > 3)
+    if(engine > 4)
     {
         std::cerr << "Unknown value for --engine : " << engine << std::endl;
         exit(-1);        

@@ -45,7 +45,7 @@ namespace pdaaal
         boost::filesystem::remove(_tmpfilepath);
     }
 
-    bool Moped::verify(const std::string& tmpfile, bool build_trace)
+    bool Moped::verify(const std::string& tmpfile, bool build_trace, bool use_pre)
     {
         // system call here!
         auto moped = get_env_var("MOPED_PATH");
@@ -57,6 +57,8 @@ namespace pdaaal
         cmd << moped;
         if(build_trace)
             cmd << " -t";
+        if(use_pre)
+            cmd << " -pB";
         cmd << " -s0 " << tmpfile;
         cmd << " -r DONE:_";
         auto cstr = cmd.str();
@@ -97,11 +99,12 @@ namespace pdaaal
                 if(buffer.empty()) continue;
                 if(saw_start)
                 {
-                    if(buffer[0] == 'I' && !saw_init && !saw_end)
+                    if(buffer[0] == 'D' || buffer[2] == '[') continue;
+                    else if(buffer[0] == 'I' && !saw_init && !saw_end)
                     {
                         saw_init = true;
                     }
-                    else if(buffer[0] == 'D' && saw_init && !saw_end)
+                    else if(buffer.substr(0, 11) == "--- END ---")
                     {
                         saw_end = true;
                     }
@@ -109,7 +112,7 @@ namespace pdaaal
                     {
                         _raw_trace.push_back(buffer);
                     }
-                    else if(buffer.substr(2, 18) == "[ target reached ]" && saw_init && saw_end)
+                    else if(saw_init && saw_end)
                     {
                         break;
                     }
@@ -120,7 +123,7 @@ namespace pdaaal
                         if(saw_init) e << "\"I <_>\" seen\n";
                         if(saw_end) e << "\"DONE <_>\" seen\n";
                         e << buffer << "\n\n" << result;
-                        throw base_error(e.str());                        
+                        throw base_error(e.str());
                     }
                 }
                 else if(buffer.substr(0, 13) == "--- START ---")

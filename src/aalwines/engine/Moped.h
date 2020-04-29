@@ -43,10 +43,10 @@ namespace pdaaal {
     public:
         Moped();
         ~Moped();
-        bool verify(const std::string& tmpfile, bool build_trace);
+        bool verify(const std::string& tmpfile, bool build_trace, bool use_pre = false);
 
         template<typename T, typename W, typename C>
-        bool verify(const PDAAdapter<T,W,C>& pda, bool build_trace);
+        bool verify(const PDAAdapter<T,W,C>& pda, bool build_trace, bool use_pre = false);
 
         template<typename T, typename W, typename C>
         static void dump_pda(const PDAAdapter<T,W,C>& pda, std::ostream& s);
@@ -67,14 +67,14 @@ namespace pdaaal {
     };
 
     template<typename T, typename W, typename C>
-    bool Moped::verify(const PDAAdapter<T,W,C>& pda, bool build_trace)
+    bool Moped::verify(const PDAAdapter<T,W,C>& pda, bool build_trace, bool use_pre)
     {
         _raw_trace.clear();
         std::fstream file;
         file.open(_tmpfilepath, std::fstream::out | std::fstream::trunc);
         dump_pda(pda, file);
         file.close();
-        return verify(_tmpfilepath, build_trace);
+        return verify(_tmpfilepath, build_trace, use_pre);
     }
 
     template<typename T, typename W, typename C>
