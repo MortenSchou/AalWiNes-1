@@ -14,7 +14,6 @@ print(sys.argv[1:])
 
 bin_hash = sys.argv[1]
 test_data = []
-reductions = []
 test_numbers = []
 moped_win = 0
 post_win = 0
@@ -32,11 +31,13 @@ moped_pre = [[0 for s in range(4)] for i in range(4)]
 post_pre = [[0 for s in range(4)] for i in range(4)]
 
 mipost_post = [[0 for s in range(4)] for i in range(4)]
+mipre_pre = [[0 for s in range(4)] for i in range(4)]
 
 bin_hash_split = bin_hash.split("-")
 
-def find_win_MI(enginea, engineb, i, reduction, con_win, Percentage, Second, sorted_verification_data):
-    list_win = [s for s in sorted_verification_data if s['Reduction'] == reduction and (s['Engine'] == enginea or s['Engine'] == engineb)]
+def find_win_MI(enginea, engineb, reduction, con_win, Percentage, Second, data):
+    list_win = [s for s in data if (s['Reduction'] == reduction and s['Engine'] == enginea)]
+    i = int(reduction[1:])
     if len(list_win) == 2:
         #Even
         if (list_win[1]['Verification-time'] - list_win[0]['Verification-time']) / list_win[1]['Verification-time'] < Percentage or list_win[1]['Verification-time'] - list_win[0]['Verification-time'] < Second:
@@ -47,10 +48,10 @@ def find_win_MI(enginea, engineb, i, reduction, con_win, Percentage, Second, sor
             con_win[1][i] = con_win[1][i] + 1
     else:
         con_win[3][i] = con_win[3][i] + 1
-    return con_win
 
-def find_win(enginea, engineb, i, reduction, con_win, Percentage, Second, sorted_verification_data):
+def find_win(enginea, engineb, reduction, con_win, Percentage, Second, sorted_verification_data):
     list_win = [s for s in sorted_verification_data if s['Reduction'] == reduction and (s['Engine'] == enginea or s['Engine'] == engineb) and s['MI'] == 0]
+    i = int(reduction[1:])
     if len(list_win) == 2:
         #Even
         if (list_win[1]['Verification-time'] - list_win[0]['Verification-time']) / list_win[1]['Verification-time'] < Percentage or list_win[1]['Verification-time'] - list_win[0]['Verification-time'] < Second:
@@ -61,8 +62,6 @@ def find_win(enginea, engineb, i, reduction, con_win, Percentage, Second, sorted
             con_win[1][i] = con_win[1][i] + 1
     else:
         con_win[3][i] = con_win[3][i] + 1
-    return con_win
-
 
 file = open('test_results.csv', 'w')
 file_all = open('test_results_all.csv', 'w')
@@ -93,7 +92,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E1-R0/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R0/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
         
@@ -103,7 +102,7 @@ with file:
             files.append(myfile)
         
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E1-R1/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R1/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -113,7 +112,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E1-R2/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R2/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -123,7 +122,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E1-R3/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R3/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
         
@@ -132,8 +131,8 @@ with file:
         if myfile.is_file():
             files.append(myfile)
 
-        myfile = Path("results/" + bin_hash_split[0] + "_MI-" +
-                      bin_hash_split[1] + "-E2-" + bin_hash_split[3] + "/" + f)
+        myfile = Path(
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R0/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -143,7 +142,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E2-R1/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R1/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -153,7 +152,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E2-R2/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R2/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -163,7 +162,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E2-R3/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R3/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -172,8 +171,8 @@ with file:
         if myfile.is_file():
             files.append(myfile)
 
-        myfile = Path("results/" + bin_hash_split[0] + "_MI-" +
-                      bin_hash_split[1] + "-E2-" + bin_hash_split[3] + "/" + f)
+        myfile = Path(
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R0/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
         
@@ -183,7 +182,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E3-R1/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R1/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
 
@@ -193,7 +192,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E3-R2/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R2/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
         
@@ -203,7 +202,7 @@ with file:
             files.append(myfile)
 
         myfile = Path(
-            "results/" + bin_hash_split[0] + "_MI-" + bin_hash_split[1] + "-E3-R3/" + f)
+            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R3/" + f)
         if myfile.is_file():
             MI_Files.append(myfile)
         try:
@@ -243,18 +242,6 @@ with file:
                 verification_compilation.append(
                     {"MI": mi, "Engine": engine, "Reduction": reduction, "Total": q['verification-time'] + q['compilation-time'] + q['reduction-time'],
                         "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"], "Output": q['result']})
-                
-                if len([s for s in queries if s['Engine'] == engine]) == 4:
-                    writer.writerow({'Network': test_name[0], 'Size-factor': test_name[1], 'Nodes': q['network_node_size'], 'Labels': q['network_label_size'],
-                                'Rules': q['network_rules_size'], 'PDA-States': q['pda_states_rules'][0], 'PDA-Rules': q['pda_states_rules'][1],
-                                'States_reduction': q['pda_states_rules_reduction'][0], 'Rules_reduction': q['pda_states_rules_reduction'][1],
-                                'Query-Fails': Q_fails, 'Query-Type': Q_type,
-                                'Engine': engine, 'Reduction': reduction, 'Compilation-time': q['compilation-time'], 'Reduction-time': q['reduction-time'],
-                                'Verification-time': q['verification-time'], 'Total-time': q['verification-time'] + q['compilation-time'] + q['reduction-time']})
-                    if engine == "E2":
-                        reductions.append({ 'Network': test_name[0], 'PDA-States': q['pda_states_rules'][0], 'PDA-Rules': q['pda_states_rules'][1],
-                                            'States_reduction': q['pda_states_rules_reduction'][0], 'Rules_reduction': q['pda_states_rules_reduction'][1], 
-                                            "R": reduction, "Vtime": q['verification-time'] + q['reduction-time']})
 
                 writer_all.writerow({'Network': test_name[0], 'Size-factor': test_name[1], 'Nodes': q['network_node_size'], 'Labels': q['network_label_size'],
                                 'Rules': q['network_rules_size'], 'PDA-States': q['pda_states_rules'][0], 'PDA-Rules': q['pda_states_rules'][1],
@@ -269,13 +256,12 @@ with file:
             Percentage = 0.5
             Second = 0.001
             # Find fastest engine for verification + reduction
-            i = -1
             for r in ["R0", "R1", "R2", "R3"]:
-                i = i + 1
-                mipost_post = find_win_MI("E2", "E2", i, r, mipost_post, Percentage, Second, sorted_verification_data)
-                moped_post = find_win("E1", "E2", i, r, moped_post, Percentage, Second, sorted_verification_data)
-                moped_pre = find_win("E1", "E3", i, r, moped_pre, Percentage, Second, sorted_verification_data)
-                post_pre = find_win("E1", "E3", i, r, post_pre, Percentage, Second, sorted_verification_data)
+                find_win_MI("E2", "E2", r, mipost_post, Percentage, Second, sorted_verification_data)
+                find_win_MI("E3", "E3", r, mipre_pre, Percentage, Second, sorted_verification_data)
+                find_win("E1", "E2", r, moped_post, Percentage, Second, sorted_verification_data)
+                find_win("E1", "E3", r, moped_pre, Percentage, Second, sorted_verification_data)
+                find_win("E1", "E3", r, post_pre, Percentage, Second, sorted_verification_data)
 
             try:
                 test_data.append({"Network": {"Nodes": queries[0]['Data']["network_node_size"], "Labels": queries[0]['Data']["network_label_size"], "Rules": queries[0]['Data']["network_rules_size"],
@@ -293,6 +279,22 @@ with file:
 
 
 #Print fastest overall time
+print("MI_PREvspre")
+print(mipost_post)
+
+i = -1
+for E in mipre_pre:
+    i = i + 1
+    if i == 0:
+        engine = "MI\_pre"
+    elif i == 1:
+        engine = "Pre"
+    elif i == 2:
+        engine = "Even"
+    elif i == 3:
+        engine = "Unknown"
+    print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
+
 print("MI_POSTvsPOST")
 print(mipost_post)
 
@@ -356,35 +358,6 @@ for E in post_pre:
     elif i == 3:
         engine = "Unknown"
     print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
-
-
-#Latex print fastest reduction on fastest engine = 2 :)
-bufferNetworks = []
-buffer = {"Network": reductions[0]['Network'], "R0": 0, "R1": 0, "R2": 0, "R3": 0}
-try:
-    print("Fastest reduction")
-    # Reductions
-    for r in reductions:
-        network = str(r['Network'])
-        reduction = str(r['R'])
-        if network != buffer['Network']:
-            bufferNetworks.append({"Network": buffer['Network'], "R0": buffer['R0'], "R1": buffer['R1'], "R2": buffer['R2'], "R3": buffer['R3']})
-            nets = [net for net in bufferNetworks if net['Network'] == network]
-            if len(nets) == 1:
-                buffer = bufferNetworks.pop(bufferNetworks.index(nets[0]))
-            else:
-                buffer = {"Network": network, "R0": 0, "R1": 0, "R2": 0, "R3": 0}
-        buffer[reduction] = (buffer[reduction] + r['Vtime']) / 2
-
-except BaseException as e:
-    print(e)
-
-# print("\nLatex Table Rows")
-bufferNetworks.append({"Network": buffer['Network'], "R0": buffer['R0'], "R1": buffer['R1'], "R2": buffer['R2'], "R3": buffer['R3']})
-for buffer in bufferNetworks:
-    if buffer['R3'] != 0:
-        speedup = ((buffer['R0'] - buffer['R3'])/buffer['R3'])
-        print(buffer['Network'] + "&" + str(round(buffer['R0'],3)) + "&" + str(round(buffer['R1'],3)) + "&" + str(round(buffer['R2'],3)) + "&" + str(round(buffer['R3'],3))+ "&" + str(round(speedup,3)) + "\\\ \hline")
 
 #Latex print fastest engine on fastest reducktion = 0
 def printline(list, bi, ei):
