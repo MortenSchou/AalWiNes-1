@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <random>
 
 namespace po = boost::program_options;
 using namespace aalwines;
@@ -64,7 +65,17 @@ void make_query(Network& network, const size_t type, const size_t k, std::ostrea
     }
 }
 
-void make_query2(Network& network, const size_t type, const size_t k, const std::string& name, bool mpls) {
+void write_query(const std::string& file, const std::stringstream& query, const size_t k) {
+    std::ofstream out_query(file);
+    if (out_query.is_open()) {
+        out_query << query.rdbuf() << " " << k << " DUAL" << std::endl;
+    } else {
+        std::cerr << "Could not open file " << file << " for writing" << std::endl;
+        exit(-1);
+    }
+}
+
+void make_query2(Network& network, const size_t type, const size_t k, const std::string& name, bool mpls, size_t nq) {
     std::string dot, dot_star, dot_dot_plus;
     if (mpls) {
         dot = "<smpls ip>";
@@ -75,90 +86,101 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
         dot_star = "<.*>";
         dot_dot_plus = "<.+ .>";
     }
+    auto size = network.get_all_routers().size() - 1;
     switch (type) {
         default:
         case 1: { // Transparency: <.> X .* Y <.* . .> k
-            for(auto &r_x : network.get_all_routers()){
-                if(r_x->is_null()) continue;
-                for(auto &r_y : network.get_all_routers()){
+            std::vector<std::pair<Router*,Router*>> all, selected;
+            all.reserve(size * size);
+            for(auto &r_x : network.get_all_routers()) {
+                if (r_x->is_null()) continue;
+                for (auto &r_y : network.get_all_routers()) {
                     if (r_y->is_null()) continue;
-                    auto query_file = name + "k" + std::to_string(k) + "-transparency-" + r_x->name() + "-" + r_y->name() + ".q";
-                    std::ofstream out_query(query_file);
-                    if (out_query.is_open()) {
-                        out_query << dot << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_dot_plus << " " << k << " DUAL" << std::endl;
-                    } else {
-                        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
-                        exit(-1);
-                    }
+                    all.emplace_back(r_x.get(), r_y.get());
                 }
+            }
+            selected.reserve(nq);
+            std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            for (auto [r_x, r_y] : selected) {
+                std::stringstream query;
+                query << dot << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_dot_plus;
+                write_query(name + "k" + std::to_string(k) + "-transparency-" + r_x->name() + "-" + r_y->name() + ".q", query, k);
             }
             break;
         }
         case 2: { // Waypointing: <.*> X [^Z]* Y <.*>
+            std::vector<std::tuple<Router*,Router*,Router*>> all, selected;
+            all.reserve(size * (size-1) * (size-2));
             for(auto &r_x : network.get_all_routers()){
                 if(r_x->is_null()) continue;
                 for(auto &r_y : network.get_all_routers()){
                     if (r_x == r_y || r_y->is_null()) continue;
                     for(auto &r_z : network.get_all_routers()) {
                         if (r_x == r_z || r_y == r_z || r_z->is_null()) continue;
-                        auto query_file = name + "k" + std::to_string(k) + "-waypoint-" + r_x->name() + "-" + r_z->name() + "-" + r_y->name() + ".q";
-                        std::ofstream out_query(query_file);
-                        if (out_query.is_open()) {
-                            out_query << dot_star << " [.#" << r_x->name() << "] [^.#" << r_z->name() << "]* [" << r_y->name() << "#.] " << dot_star << " " << k << " DUAL" << std::endl;
-                        } else {
-                            std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
-                            exit(-1);
-                        }
+                        all.emplace_back(r_x.get(), r_y.get(), r_z.get());
                     }
                 }
+            }
+            selected.reserve(nq);
+            std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            for (auto [r_x, r_y, r_z] : selected) {
+                std::stringstream query;
+                query << dot_star << " [.#" << r_x->name() << "] [^.#" << r_z->name() << "]* [" << r_y->name() << "#.] " << dot_star;
+                write_query(name + "k" + std::to_string(k) + "-waypoint-" + r_x->name() + "-" + r_z->name() + "-" + r_y->name() + ".q", query, k);
             }
             break;
         }
         case 3: { // Reachability: <.*> X .* Y <.*>
+            std::vector<std::pair<Router*,Router*>> all, selected;
+            all.reserve(size * (size-1));
             for(auto &r_x : network.get_all_routers()){
                 if(r_x->is_null()) continue;
                 for(auto &r_y : network.get_all_routers()){
                     if (r_x == r_y || r_y->is_null()) continue;
-                    auto query_file = name + "k" + std::to_string(k) + "-reachability-" + r_x->name() + "-" + r_y->name() + ".q";
-                    std::ofstream out_query(query_file);
-                    if (out_query.is_open()) {
-                        out_query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_star << " " << k << " DUAL" << std::endl;
-                    } else {
-                        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
-                        exit(-1);
-                    }
+                    all.emplace_back(r_x.get(), r_y.get());
                 }
+            }
+            selected.reserve(nq);
+            std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            for (auto [r_x, r_y] : selected) {
+                std::stringstream query;
+                query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_star;
+                write_query(name + "k" + std::to_string(k) + "-reachability-" + r_x->name() + "-" + r_y->name() + ".q", query, k);
             }
             break;
         }
         case 4: { // <.*> X .* Y <.>
+            std::vector<std::pair<Router*,Router*>> all, selected;
+            all.reserve(size * (size-1));
             for(auto &r_x : network.get_all_routers()){
                 if(r_x->is_null()) continue;
                 for(auto &r_y : network.get_all_routers()){
                     if (r_x == r_y || r_y->is_null()) continue;
-                    auto query_file = name + "k" + std::to_string(k) + "-startosingle-" + r_x->name() + "-" + r_y->name() + ".q";
-                    std::ofstream out_query(query_file);
-                    if (out_query.is_open()) {
-                        out_query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot << " " << k << " DUAL" << std::endl;
-                    } else {
-                        std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
-                        exit(-1);
-                    }
+                    all.emplace_back(r_x.get(), r_y.get());
                 }
+            }
+            selected.reserve(nq);
+            std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            for (auto [r_x, r_y] : selected) {
+                std::stringstream query;
+                query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot;
+                write_query(name + "k" + std::to_string(k) + "-startosingle-" + r_x->name() + "-" + r_y->name() + ".q", query, k);
             }
             break;
         }
         case 5: { // Loop: <.*> X .+ X <.*>
-            for(auto &r_x : network.get_all_routers()) {
-                if (r_x->is_null()) continue;
-                auto query_file = name + "k" + std::to_string(k) + "-loop-" + r_x->name() + ".q";
-                std::ofstream out_query(query_file);
-                if (out_query.is_open()) {
-                    out_query << dot_star << " [.#" << r_x->name() << "] .+ [" << r_x->name() << "#.] " << dot_star << " " << k << " DUAL" << std::endl;
-                } else {
-                    std::cerr << "Could not open file " << query_file << " for writing" << std::endl;
-                    exit(-1);
-                }
+            std::vector<Router*> all, selected;
+            all.reserve(size);
+            for(auto &r_x : network.get_all_routers()){
+                if(r_x->is_null()) continue;
+                all.push_back(r_x.get());
+            }
+            selected.reserve(nq); // Note std::sample ensures that selected.size() <= all.size() even if nq > all.size()
+            std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            for (auto r_x : selected) {
+                std::stringstream query;
+                query << dot_star << " [.#" << r_x->name() << "] .+ [" << r_x->name() << "#.] " << dot_star;
+                write_query(name + "k" + std::to_string(k) + "-loop-" + r_x->name() + ".q", query, k);
             }
             break;
         }
@@ -206,6 +228,7 @@ int main(int argc, const char** argv) {
     opts.add(input);
     size_t N = 1;
     size_t max_k = 3;
+    size_t number_queries = 1;
     bool mpls = false;
     bool dot_graph = false;
     bool print_simple = false;
@@ -213,6 +236,7 @@ int main(int argc, const char** argv) {
     generate.add_options()
             ("size,N", po::value<size_t>(&N), "the size variable (N)")
             ("max_k,k", po::value<size_t>(&max_k), "the maximal number of failures (k) for the queries generated")
+            ("number_q,q", po::value<size_t>(&number_queries), "the number of random queries of each type and k")
             ("mpls,m", po::bool_switch(&mpls), "Use mpls smpls and ip instead of wilcard <.>")
             ("dot,d", po::bool_switch(&dot_graph), "print dot graph output")
             ("print_simple,p", po::bool_switch(&print_simple), "print simple routing output")
@@ -274,7 +298,7 @@ int main(int argc, const char** argv) {
     for (size_t k = 0; k <= max_k; ++k) {
         for (size_t type = 1; type <= 5; ++type) {
             std::filesystem::create_directory(name + "-" + std::to_string(N));
-            make_query2(network, type, k, name + "-" + std::to_string(N) + "/", mpls);
+            make_query2(network, type, k, name + "-" + std::to_string(N) + "/", mpls, number_queries);
         }
     }
 
