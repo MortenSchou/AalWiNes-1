@@ -101,10 +101,12 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             }
             selected.reserve(nq);
             std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            size_t i = 0;
             for (auto [r_x, r_y] : selected) {
                 std::stringstream query;
                 query << dot << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_dot_plus;
-                write_query(name + "k" + std::to_string(k) + "-transparency-" + r_x->name() + "-" + r_y->name() + ".q", query, k);
+                write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
+                i++;
             }
             break;
         }
@@ -123,10 +125,12 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             }
             selected.reserve(nq);
             std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            size_t i = 0;
             for (auto [r_x, r_y, r_z] : selected) {
                 std::stringstream query;
                 query << dot_star << " [.#" << r_x->name() << "] [^.#" << r_z->name() << "]* [" << r_y->name() << "#.] " << dot_star;
-                write_query(name + "k" + std::to_string(k) + "-waypoint-" + r_x->name() + "-" + r_z->name() + "-" + r_y->name() + ".q", query, k);
+                write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
+                i++;
             }
             break;
         }
@@ -142,10 +146,12 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             }
             selected.reserve(nq);
             std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            size_t i = 0;
             for (auto [r_x, r_y] : selected) {
                 std::stringstream query;
                 query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_star;
-                write_query(name + "k" + std::to_string(k) + "-reachability-" + r_x->name() + "-" + r_y->name() + ".q", query, k);
+                write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
+                i++;
             }
             break;
         }
@@ -161,10 +167,12 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             }
             selected.reserve(nq);
             std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            size_t i = 0;
             for (auto [r_x, r_y] : selected) {
                 std::stringstream query;
                 query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot;
-                write_query(name + "k" + std::to_string(k) + "-startosingle-" + r_x->name() + "-" + r_y->name() + ".q", query, k);
+                write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
+                i++;
             }
             break;
         }
@@ -177,10 +185,12 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             }
             selected.reserve(nq); // Note std::sample ensures that selected.size() <= all.size() even if nq > all.size()
             std::sample(all.begin(), all.end(), std::back_inserter(selected), nq, std::mt19937{std::random_device{}()});
+            size_t i = 0;
             for (auto r_x : selected) {
                 std::stringstream query;
                 query << dot_star << " [.#" << r_x->name() << "] .+ [" << r_x->name() << "#.] " << dot_star;
-                write_query(name + "k" + std::to_string(k) + "-loop-" + r_x->name() + ".q", query, k);
+                write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
+                i++;
             }
             break;
         }
