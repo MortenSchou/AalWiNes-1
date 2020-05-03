@@ -107,14 +107,11 @@ namespace pdaaal
                     else if(buffer.substr(0, 11) == "--- END ---")
                     {
                         saw_end = true;
+                        break;
                     }
                     else if(buffer[0] == 'S' && saw_init && !saw_end)
                     {
                         _raw_trace.push_back(buffer);
-                    }
-                    else if(saw_init && saw_end)
-                    {
-                        break;
                     }
                     else
                     {
