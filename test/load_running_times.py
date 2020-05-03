@@ -9,6 +9,7 @@ from sys import stdout
 import csv
 from pathlib import Path
 from os import walk
+import statistics
 
 print(sys.argv[1:])
 
@@ -23,6 +24,7 @@ red1_win = 0
 red2_win = 0
 red3_win = 0
 engine_ratio = []
+min_dif_veri = []
 
 #Moped vs post
 moped_post = [[0 for s in range(4)] for i in range(4)]
@@ -34,6 +36,14 @@ mipost_post = [[0 for s in range(4)] for i in range(4)]
 mipre_pre = [[0 for s in range(4)] for i in range(4)]
 
 bin_hash_split = bin_hash.split("-")
+
+def Average(lst): 
+    return sum(lst) / len(lst) 
+
+def min_dif(lst):
+    lst2 = lst[10:20]
+    lst1 = lst[0:10]
+    return min([abs(x - y) for x, y in zip(lst1, lst2)])
 
 def find_win_MI(enginea, engineb, reduction, con_win, Percentage, Second, data):
     list_win = [s for s in data if (s['Reduction'] == reduction and s['Engine'] == enginea)]
@@ -50,7 +60,7 @@ def find_win_MI(enginea, engineb, reduction, con_win, Percentage, Second, data):
         con_win[3][i] = con_win[3][i] + 1
 
 def find_win(enginea, engineb, reduction, con_win, Percentage, Second, sorted_verification_data):
-    list_win = [s for s in sorted_verification_data if s['Reduction'] == reduction and (s['Engine'] == enginea or s['Engine'] == engineb) and s['MI'] == 0]
+    list_win = [s for s in sorted_verification_data if s['Reduction'] == reduction and (s['Engine'] == enginea or s['Engine'] == engineb)]
     i = int(reduction[1:])
     if len(list_win) == 2:
         #Even
@@ -87,124 +97,25 @@ with file:
         MI_Files = []
         verification_compilation = []
         mi_post_veri = []
-        myfile = Path("results/" + bin_hash + "/" + f)
-        if myfile.is_file():
-            files.append(myfile)
+        for i in range(1,11):
+            myfile = Path("results/" + bin_hash + "/E2-R0/" + f + "-" + str(i))
+            if myfile.is_file():
+                files.append(myfile)
 
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R0/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-        
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E1-R1/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-        
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R1/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
+            myfile = Path(
+                "results/" + bin_hash + "/E3-R0/" + f + "-" + str(i))
+            if myfile.is_file():
+                files.append(myfile)
 
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E1-R2/" + f)
-        if myfile.is_file():
-            files.append(myfile)
+            myfile = Path("results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-1" + "/E2-R0/" + f + "-" + str(i))
+            if myfile.is_file():
+                MI_Files.append(myfile)
 
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R2/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
+            myfile = Path(
+                "results/" + bin_hash_split[0] + "-"  + bin_hash_split[1] + "-1" + "/E3-R0/" + f + "-" + str(i))
+            if myfile.is_file():
+                MI_Files.append(myfile)
 
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E1-R3/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E1-R3/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-        
-        myfile = Path("results/" + bin_hash_split[0] + "-" +
-                      bin_hash_split[1] + "-E2-" + bin_hash_split[3] + "/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R0/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E2-R1/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R1/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E2-R2/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R2/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E2-R3/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E2-R3/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-
-        myfile = Path("results/" + bin_hash_split[0] + "-" +
-                      bin_hash_split[1] + "-E3-" + bin_hash_split[3] + "/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R0/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-        
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E3-R1/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R1/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E3-R2/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R2/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
-        
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-" + bin_hash_split[1] + "-E3-R3/" + f)
-        if myfile.is_file():
-            files.append(myfile)
-
-        myfile = Path(
-            "results/" + bin_hash_split[0] + "-2-" + bin_hash_split[1] + "-E3-R3/" + f)
-        if myfile.is_file():
-            MI_Files.append(myfile)
         try:
             if not files:
                 continue
@@ -212,19 +123,21 @@ with file:
 
             for i in range(len(files)):
                 jd = json.load(open(files[i]))
-                name = files[i].parts[1]
-                test_type = [s for s in name.split('-') if s[1:].isdigit()]
+                name = files[i].parts[2]
+                test_type = [s for s in name.split('-')]
+                test_name = [s for s in files[i].name.split('-')]
                 engine = test_type[0]
                 reduction = test_type[1]
-                queries.append({"Name": name, "Reduction": reduction, "Engine": engine, "Data": jd["answers"]["Q1"], "MI": 0})
+                queries.append({"Name": name, "Repetation": test_name[4], "Reduction": reduction, "Engine": engine, "Data": jd["answers"]["Q1"], "MI": 0})
 
             for i in range(len(MI_Files)):
                 jd_mi = json.load(open(MI_Files[i]))
-                name = MI_Files[i].parts[1]
-                test_type = [s for s in name.split('-') if s[1:].isdigit()]
+                name = MI_Files[i].parts[2]
+                test_type = [s for s in name.split('-')]
+                test_name = [s for s in files[i].name.split('-')]
                 engine = test_type[0]
                 reduction = test_type[1]
-                queries.append({"Name": name, "Reduction": reduction, "Engine": engine, "Data": jd_mi["answers"]["Q1"], "MI": 1})
+                queries.append({"Name": name, "Repetation": test_name[4], "Reduction": reduction, "Engine": engine, "Data": jd_mi["answers"]["Q1"], "MI": 1})
 
 
             # Get universal network stats
@@ -233,140 +146,113 @@ with file:
             test_name = [s for s in f.split('-')]
             Q_type = test_numbers[0]
             Q_fails = test_numbers[1]
+            verification_times = []
 
+
+            i = j = 1
             for q in queries:
                 engine = q['Engine']
                 reduction = q['Reduction']
                 mi = q['MI']
+                rep = q['Repetation']
                 q = q['Data']
-                verification_compilation.append(
-                    {"MI": mi, "Engine": engine, "Reduction": reduction, "Total": q['verification-time'] + q['compilation-time'] + q['reduction-time'],
-                        "Compilation-time": q["compilation-time"], "Verification-time": q['verification-time'], "Reduction-time": q["reduction-time"], "Output": q['result']})
+                t = next((s for s in verification_times if s['Engine'] == engine and s['MI'] == mi), False)
+                if t:
+                    red_list = t['Reduction']
+                    red_list.append(q['reduction-time'])
+                    t['Reduction'] = red_list
+                    veri_list = t['Verification-time']
+                    veri_list.append(q['verification-time'])
+                    t['Verification-time'] = veri_list
+                    com_list = t['Compilation']
+                    com_list.append(q['compilation-time'])
+                    t['Compilation'] = com_list
+                    total_list = t['Total']
+                    total_list.append(q['verification-time'] + q['compilation-time'] + q['reduction-time'])
+                    t['Total'] = total_list
+                    if rep == "10":
+                        #verification_compilation.append({"MI": mi, "Engine": engine, "Reduction": reduction, "Total": Average(total_time),
+                        #        "Compilation-time": Average(compilation_time), "Verification-time": Average(verification_time), "Reduction-time": Average(reduction_time), "Output": q['result']})
+                        verification_compilation.append({"MI": mi, "Engine": engine, "Reduction": reduction, "Total": statistics.median(total_list),
+                                "Compilation-time": statistics.median(com_list), "Verification-time": statistics.median(veri_list), "Reduction-time": statistics.median(red_list), "Output": q['result']})
+                else:
+                    red_list = []
+                    veri_list = []
+                    com_list = []
+                    total_list = []
+                    red_list.append(q['reduction-time'])
+                    veri_list.append(q['verification-time'])
+                    com_list.append(q["compilation-time"])
+                    total_list.append(q['verification-time'] + q['compilation-time'] + q['reduction-time'])
+                    verification_times.append({"MI": mi, "Engine": engine, "Reduction": red_list, "Verification-time": veri_list, "Compilation": com_list, "Total": total_list})
 
-                writer_all.writerow({'Network': test_name[0], 'Size-factor': test_name[1], 'Nodes': q['network_node_size'], 'Labels': q['network_label_size'],
-                                'Rules': q['network_rules_size'], 'PDA-States': q['pda_states_rules'][0], 'PDA-Rules': q['pda_states_rules'][1],
-                                'States_reduction': q['pda_states_rules_reduction'][0], 'Rules_reduction': q['pda_states_rules_reduction'][1],
-                                'Query-Fails': Q_fails, 'Query-Type': Q_type,
-                                'Engine': engine, 'Reduction': reduction, 'Compilation-time': q['compilation-time'], 'Reduction-time': q['reduction-time'],
-                                'Verification-time': q['verification-time'], 'Total-time': q['verification-time'] + q['compilation-time'] + q['reduction-time']})
+
 
             sorted_verification_data = sorted(
                 verification_compilation, key=lambda k: k['Verification-time'])
 
-            Percentage = 0.5
-            Second = 0.001
+            Percentage = 20/100
+            Second = 0.00001
             # Find fastest engine for verification + reduction
             for r in ["R0", "R1", "R2", "R3"]:
-                find_win_MI("E2", "E2", r, mipost_post, Percentage, Second, sorted_verification_data)
-                find_win_MI("E3", "E3", r, mipre_pre, Percentage, Second, sorted_verification_data)
-                find_win("E1", "E2", r, moped_post, Percentage, Second, sorted_verification_data)
-                find_win("E1", "E3", r, moped_pre, Percentage, Second, sorted_verification_data)
-                find_win("E1", "E3", r, post_pre, Percentage, Second, sorted_verification_data)
+                #find_win("E1", "E2", r, moped_post, Percentage, Second, sorted_verification_data)
+                #find_win("E1", "E3", r, moped_pre, Percentage, Second, sorted_verification_data)
+                find_win("E2", "E3", r, post_pre, Percentage, Second, sorted_verification_data)
 
-            try:
-                test_data.append({"Network": {"Nodes": queries[0]['Data']["network_node_size"], "Labels": queries[0]['Data']["network_label_size"], "Rules": queries[0]['Data']["network_rules_size"],
-                                        "States": queries[0]['Data']["pda_states_rules"][0], "PDA_Rules": queries[0]['Data']["pda_states_rules"][1],
-                                        "States_reduction": queries[0]['Data']["pda_states_rules_reduction"][0], "Rules_reduction": queries[0]['Data']["pda_states_rules_reduction"][1]},
-                            "Query": {"Failover": (int)(Q_fails), "Type": Q_type},
-                            "Verification": tuple(sorted_verification_data)})
-            except:
-                print(f)
-                continue
+
+
+            test_data.append({"Network": {"Nodes": queries[0]['Data']["network_node_size"], "Labels": queries[0]['Data']["network_label_size"], "Rules": queries[0]['Data']["network_rules_size"],
+                                    "States": queries[0]['Data']["pda_states_rules"][0], "PDA_Rules": queries[0]['Data']["pda_states_rules"][1],
+                                    "States_reduction": queries[0]['Data']["pda_states_rules_reduction"][0], "Rules_reduction": queries[0]['Data']["pda_states_rules_reduction"][1]},
+                        "Query": {"Failover": (int)(Q_fails), "Type": Q_type},
+                        "Verification": tuple(sorted_verification_data)})
 
         except json.decoder.JSONDecodeError as e:
             print(f)
-            print(e)
 
 
-#Print fastest overall time
-print("MI_PREvspre")
-print(mipost_post)
+def printwin(lst):
+    i = -1
+    for E in lst:
+        i = i + 1
+        if i == 0:
+            engine = "MI\_post"
+        elif i == 1:
+            engine = "Post"
+        elif i == 2:
+            engine = "Even"
+        elif i == 3:
+            engine = "Unknown"
+        print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
 
-i = -1
-for E in mipre_pre:
-    i = i + 1
-    if i == 0:
-        engine = "MI\_pre"
-    elif i == 1:
-        engine = "Pre"
-    elif i == 2:
-        engine = "Even"
-    elif i == 3:
-        engine = "Unknown"
-    print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
-
-print("MI_POSTvsPOST")
-print(mipost_post)
-
-i = -1
-for E in mipost_post:
-    i = i + 1
-    if i == 0:
-        engine = "MI\_post"
-    elif i == 1:
-        engine = "Post"
-    elif i == 2:
-        engine = "Even"
-    elif i == 3:
-        engine = "Unknown"
-    print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
-
-
-#Print fastest overall time
-print("MopedPost")
-print(moped_post)
-
-i = -1
-for E in moped_post:
-    i = i + 1
-    if i == 0:
-        engine = "Moped"
-    elif i == 1:
-        engine = "Post"
-    elif i == 2:
-        engine = "Even"
-    elif i == 3:
-        engine = "Unknown"
-    print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
-
-print("moped_pre")
-print(moped_pre)
-i = -1
-for E in moped_pre:
-    i = i + 1
-    if i == 0:
-        engine = "Moped"
-    elif i == 1:
-        engine = "Pre"
-    elif i == 2:
-        engine = "Even"
-    elif i == 3:
-        engine = "Unknown"
-    print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
-
-print("post_pre")
-print(post_pre)
-i = -1
-for E in post_pre:
-    i = i + 1
-    if i == 0:
-        engine = "Post"
-    elif i == 1:
-        engine = "Pre"
-    elif i == 2:
-        engine = "Even"
-    elif i == 3:
-        engine = "Unknown"
-    print(engine + "&" + str(E[0]) + "&" + str(E[1]) + "&" + str(E[2]) + "&" + str(E[3]) + "\\\ \hline")
 
 #Latex print fastest engine on fastest reducktion = 0
 def printline(list, bi, ei):
-        sorted_engine_ratio = sorted(list, key=lambda k: k['Ratio'])
-        for t in sorted_engine_ratio[bi:ei]:
-            print(str(t['Test']['Network']['Nodes']) + "&" +  str(t['Test']['Network']['Rules']) + "&" + str(t['Test']['Network']['Labels']) 
-                + "&" + str(t['Test']['Network']['States_reduction']) + "&" + str(t['Test']['Network']['Rules_reduction']) + "&" + str(t['Test']['Query']) + "&" + str(t['R'])
-                + "&" + str(round(t['FT'], 4)) + "&" + str(round(t['NT'], 4)) + "&" + str(round(t['Ratio'], 4)) + "\\\ \hline")
-        print("$\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$\\\ \hline")
+    for t in list[bi:ei]:
+        print(str(t['Test']['Network']['Nodes']) + "&" +  str(t['Test']['Network']['Rules']) + "&" + str(t['Test']['Network']['Labels']) 
+            + "&" + str(t['Test']['Network']['States_reduction']) + "&" + str(t['Test']['Network']['Rules_reduction']) + "&" + str(t['Test']['Query']) + "&" + str(t['R'])
+            + "&" + str(round(t['FT'], 4)) + "&" + str(round(t['NT'], 4)) + "&" + str(round(t['Ratio'], 4)) + "\\\ \hline")
+    print("$\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$ & $\\vdots$\\\ \hline")
+
+def printlines(list, list_false):
+    print("True")
+    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
+
+    sorted_engine_ratio = sorted(list, key=lambda k: k['Ratio'])
+    printline(sorted_engine_ratio, 0, 5)
+    mid = int(len(sorted_engine_ratio)/2)
+    printline(sorted_engine_ratio, mid, mid + 5)
+    last = int(len(sorted_engine_ratio))
+    printline(sorted_engine_ratio, last - 5, last)
+
+    print("False")
+    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
+    sorted_engine_ratio_false = sorted(list_false, key=lambda k: k['Ratio'])
+    printline(sorted_engine_ratio_false, 0, 5)
+    mid = int(len(sorted_engine_ratio_false)/2)
+    printline(sorted_engine_ratio_false, mid, mid + 5)
+    last = int(len(sorted_engine_ratio_false))
+    printline(sorted_engine_ratio_false, last - 5, last)
 
 def get_ratio(engineA, engineB):
     engine_ratio = []
@@ -393,26 +279,8 @@ def get_ratio(engineA, engineB):
             except:
                 print("some")
                     
-
-    print("True")
-
     print(engineA + engineB)
-    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
-
-    printline(engine_ratio, 0, 5)
-    mid = int(len(engine_ratio)/2)
-    printline(engine_ratio, mid, mid + 5)
-    last = int(len(engine_ratio))
-    printline(engine_ratio, last - 5, last)
-
-    print("False")
-
-    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
-    printline(engine_ratio_false, 0, 5)
-    mid = int(len(engine_ratio_false)/2)
-    printline(engine_ratio_false, mid, mid + 5)
-    last = int(len(engine_ratio_false))
-    printline(engine_ratio_false, last - 5, last)
+    printlines(engine_ratio, engine_ratio_false)
 
 def get_ratio_MI(engineA, engineB):
     engine_ratio = []
@@ -440,27 +308,18 @@ def get_ratio_MI(engineA, engineB):
                 print("some")
                     
 
-    print("TrueMI")
-
+    print("MI")
     print(engineA + engineB)
-    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
-
-    printline(engine_ratio, 0, 5)
-    mid = int(len(engine_ratio)/2)
-    printline(engine_ratio, mid, mid + 5)
-    last = int(len(engine_ratio))
-    printline(engine_ratio, last - 5, last)
-
-    print("FalseMI")
-
-    print("\\begin{table}[H]\n\\centering\n\\begin{adjustwidth}{-2cm}{}\n\\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}\n \hline \n \\rowcolor[HTML]{9B9B9B}\n \\textbf{Nodes}& \\textbf{Rules} & \\textbf{Labels} & \\textbf{PDA-S} & \\textbf{PDA-R} & \\textbf{Query} & \\textbf{R} & \\textbf{V1} & \\textbf{V2} & \\textbf{Ratio}\\\ \hline")
-    printline(engine_ratio_false, 0, 5)
-    mid = int(len(engine_ratio_false)/2)
-    printline(engine_ratio_false, mid, mid + 5)
-    last = int(len(engine_ratio_false))
-    printline(engine_ratio_false, last - 5, last)
+    printlines(engine_ratio, engine_ratio_false)
 
 get_ratio_MI("E2", "E2")
-get_ratio("E1","E2")
-get_ratio("E1","E3")
-get_ratio("E2","E3")
+get_ratio_MI("E3", "E3")
+#get_ratio("E1","E2")
+#get_ratio("E1","E3")
+
+#Print fastest overall time
+print("MI_POSTvsPOST")
+print(post_pre)
+printwin(post_pre)
+
+#get_ratio("E2","E3")
