@@ -259,21 +259,12 @@ namespace aalwines {
         auto mask = pre.mask();
 
         switch (pre.type()) {
-            case Query::ANYSTICKY:
-            case Query::ANYMPLS:
-                mask = 64;
-                val = 0;
-                // fall through to MPLS
             case Query::STICKY_MPLS:
             case Query::MPLS: {
                 if (mask == 0) {
                     rules.push_back(cpy);
                     rules.back()._pre = pre;
-                    rules.push_back(cpy);
-                    if (pre.type() & Query::STICKY)
-                        rules.back()._pre = Query::label_t::any_sticky_mpls;
-                    else
-                        rules.back()._pre = Query::label_t::any_mpls;
+                    assert(rules.back()._pre.mask() == 0);
                 } else {
                     for (auto &l : _network.get_labels(val, mask,
                                                        (Query::type_t) (Query::MPLS | (pre.type() & Query::STICKY)))) {
@@ -367,9 +358,7 @@ namespace aalwines {
                     entry._top_label.type() == Query::IP6)) {
                 return false;
             }
-            if (entry._top_label.type() != Query::ANYIP &&
-                entry._top_label.type() != Query::ANYMPLS &&
-                entry._top_label.type() != Query::ANYSTICKY) {
+            if (entry._top_label.type() != Query::ANYIP) {
                 nr._op = pdaaal::SWAP;
                 nr._op_label = entry._top_label;
                 assert(entry._top_label.mask() == 0);
@@ -398,9 +387,6 @@ namespace aalwines {
                 auto eid = ((&entry) - s._inf->table().entries().data());
                 auto rid = ((&forward) - entry._rules.data());
                 res = add_state(n, s._inf, appmode, eid, rid, 0);
-                if constexpr (is_weighted) {
-                    ar._weight = _weight_f(forward, false);
-                }
             }
             ar._dest = res.second;
 
@@ -492,9 +478,6 @@ namespace aalwines {
             } else {
                 auto res = add_state(s._nfastate, s._inf, s._appmode, s._eid, s._rid, s._opid + 1);
                 nr._dest = res.second;
-                if constexpr (is_weighted) {
-                    nr._weight = _weight_f(r, false);
-                }
             }
             //or/andHere
         }
@@ -502,7 +485,7 @@ namespace aalwines {
     }
 
     template<typename W_FN, typename W>
-    void NetworkPDAFactory<W_FN, W>::print_trace_rule(std::ostream &stream, const Interface* inf, 
+    void NetworkPDAFactory<W_FN, W>::print_trace_rule(std::ostream &stream, const Interface* inf,
                                                   const RoutingTable::entry_t &entry,
                                                   const RoutingTable::forward_t &rule) const {
         stream << "{";
@@ -520,6 +503,16 @@ namespace aalwines {
         }
         stream << ",\"rule\":";
         rule.print_json(stream, false);
+
+        if constexpr (is_weighted) {
+            stream << ", \"priority-weight\": [";
+            auto weights = _weight_f(rule, true);
+            for (size_t v = 0; v < weights.size(); v++){
+                if (v != 0) stream << ", ";
+                stream << "\"" << std::to_string(weights[v]) << "\"";
+            }
+            stream << "]";
+        }
         stream << "}";
     }
 
@@ -739,11 +732,9 @@ namespace aalwines {
                         if (!step._stack.empty()) {
                             //            ANYMPLS = 1, ANYIP = 2, IP4 = 4, IP6 = 8, MPLS = 16, STICKY = 32, INTERFACE = 64, NONE = 128, ANYSTICKY = ANYMPLS | STICKY, STICKY_MPLS = MPLS | STICKY
                             switch (step._stack.front().type()) {
-                                case Query::ANYMPLS:
-                                case Query::ANYSTICKY:
-                                case Query::ANYIP:
                                 case Query::IP4:
                                 case Query::IP6:
+                                case Query::ANYIP:
                                     if (entries[cnt]->_top_label != Query::label_t::any_ip &&
                                         entries[cnt]->_top_label.mask() < step._stack.front().mask()) {
                                         concrete = entries[cnt]->_top_label;
@@ -759,9 +750,7 @@ namespace aalwines {
                                 for (auto &s : trace[upd]._stack) {
                                     if (s.type() == Query::ANYIP ||
                                         s.type() == Query::IP4 ||
-                                        s.type() == Query::IP6 ||
-                                        s.type() == Query::ANYSTICKY ||
-                                        s.type() == Query::ANYMPLS) {
+                                        s.type() == Query::IP6) {
                                         s = concrete;
                                         break;
                                     }

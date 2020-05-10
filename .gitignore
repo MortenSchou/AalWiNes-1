@@ -43,7 +43,8 @@ cmake-build-relwithdebinfo/
 src/aalwines/query/*.cc
 src/aalwines/query/*.hh
 
-
-# Tests
-test/performance_test_networks/
+# Test
+cmake-build-profiler/
+cmake-build-static/
 test/results/
+test/performance_test_networks/
