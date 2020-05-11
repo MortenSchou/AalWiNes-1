@@ -160,7 +160,7 @@ int main(int argc, const char** argv)
     bool no_timing = false;
     std::string topology_destination;
     std::string routing_destination;
-    static const char *engineTypes[] = {"", "Moped", "Post*", "Pre*"};
+    static const char *engineTypes[] = {"", "MopedPost", "Post*", "Pre*", "MopedPre"};
     static const char *modeTypes[] {"OVER", "UNDER", "DUAL", "EXACT"};
 
     output.add_options()
