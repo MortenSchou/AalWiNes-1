@@ -467,7 +467,7 @@ int main(int argc, const char** argv)
             {
                 std::cout << ",\n\t\t\"compilation-time\":" << (compilation_time.duration())
                           << ",\n\t\t\"reduction-time\":" << (reduction_time.duration())
-                          << ",\n\t\t\"verification-time\":" << (engine == 1 ? moped._moped_verification_time_output : verification_time.duration());
+                          << ",\n\t\t\"verification-time\":" << (engine == 1 || engine == 4 ? moped._moped_verification_time_output : verification_time.duration());
                           /*if(engine == 1){
                               std::cout << ",\n\t\t\"verification-time\":" << moped.verification_duration();
                               std::cout << ",\n\t\t\"moped-verification-time\":" << moped._moped_verification_time_output;
