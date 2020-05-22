@@ -25,6 +25,17 @@ distance_lst = []
 complex_lst = []
 failures_lst = []
 
+def manipulate_results(lst):
+    return_lst = []
+    for l in lst:
+        if(l['Data']['result'] == False):
+            l['Data']['result'] = True
+        elif(l['Data']['result'] == True):
+            l['Data']['result'] = False
+        if(l['Data']['verification-time'] > 1):
+            return_lst.append(l)
+    return return_lst
+
 tests =[]
 for t in ['Aarnet', 'Agis', 'Bandcon', 'Bellcanada', 'Claranet', 'DeutscheTelekom']:
     for N in range(1,6):
@@ -84,6 +95,7 @@ for f in tests:
             else:
                 queries.append({"Name": name, "Repetation": test_name[5], "Reduction": reduction, "Engine": engine, "Weight": False, "Data": jd["answers"]["Q1"]})
 
+        queries = manipulate_results(queries)
         # Get universal network stats
         verification_times = []
 
