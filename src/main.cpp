@@ -120,9 +120,9 @@ bool do_verification(stopwatch& compilation_time, stopwatch& reduction_time, sto
             break;
         }
         case 4: {
-            engine_outcome = moped.verify(pda, need_trace, true);
+            engine_outcome = moped.verify(pda, true, true);
             verification_time.stop();
-            if (need_trace && engine_outcome) {
+            if (engine_outcome) {
                 trace = moped.get_trace(pda);
                 if (factory.write_json_trace(proof, trace))
                     result = utils::YES;
