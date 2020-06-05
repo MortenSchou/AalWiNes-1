@@ -265,7 +265,9 @@ int main(int argc, const char** argv)
     
     std::stringstream dummy;
     std::ostream& warnings = no_parser_warnings ? dummy : std::cerr;
-    
+
+    stopwatch full_time;
+
     stopwatch parsingwatch;
     auto network = junos_config.empty() ?
         PRexBuilder::parse(prex_topo, prex_routing, warnings) :
@@ -482,10 +484,14 @@ int main(int argc, const char** argv)
             std::cout << "\n";
             }
         }
+        full_time.stop();
 
         if(!dump_to_moped)
         {
             std::cout << "\n}";
+            if(!no_timing) {
+                std::cout << ",\n\"full-time\":" << full_time.duration();
+            }
         }
     }
     if (!dump_to_moped && (print_net || !query_file.empty()))
