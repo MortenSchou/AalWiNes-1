@@ -10,6 +10,7 @@
 #include <fstream>
 #include <filesystem>
 #include <random>
+#include <regex>
 
 namespace po = boost::program_options;
 using namespace aalwines;
@@ -75,6 +76,10 @@ void write_query(const std::string& file, const std::stringstream& query, const 
     }
 }
 
+std::string escape(const std::string& name){
+    return std::regex_replace(name, std::regex(R"(')"), R"(\')");
+}
+
 void make_query2(Network& network, const size_t type, const size_t k, const std::string& name, bool mpls, size_t nq) {
     std::string dot, dot_star, dot_dot_plus;
     if (mpls) {
@@ -104,7 +109,7 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             size_t i = 0;
             for (auto [r_x, r_y] : selected) {
                 std::stringstream query;
-                query << dot << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_dot_plus;
+                query << dot << " [.#'" << escape(r_x->name()) << "'] .* ['" << escape(r_y->name()) << "'#.] " << dot_dot_plus;
                 write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
                 i++;
             }
@@ -128,7 +133,7 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             size_t i = 0;
             for (auto [r_x, r_y, r_z] : selected) {
                 std::stringstream query;
-                query << dot_star << " [.#" << r_x->name() << "] [^.#" << r_z->name() << "]* [" << r_y->name() << "#.] " << dot_star;
+                query << dot_star << " [.#'" << escape(r_x->name()) << "'] [^.#'" << escape(r_z->name()) << "']* ['" << escape(r_y->name()) << "'#.] " << dot_star;
                 write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
                 i++;
             }
@@ -149,7 +154,7 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             size_t i = 0;
             for (auto [r_x, r_y] : selected) {
                 std::stringstream query;
-                query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot_star;
+                query << dot_star << " [.#'" << escape(r_x->name()) << "'] .* ['" << escape(r_y->name()) << "'#.] " << dot_star;
                 write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
                 i++;
             }
@@ -170,7 +175,7 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             size_t i = 0;
             for (auto [r_x, r_y] : selected) {
                 std::stringstream query;
-                query << dot_star << " [.#" << r_x->name() << "] .* [" << r_y->name() << "#.] " << dot;
+                query << dot_star << " [.#'" << escape(r_x->name()) << "'] .* ['" << escape(r_y->name()) << "'#.] " << dot;
                 write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
                 i++;
             }
@@ -188,7 +193,7 @@ void make_query2(Network& network, const size_t type, const size_t k, const std:
             size_t i = 0;
             for (auto r_x : selected) {
                 std::stringstream query;
-                query << dot_star << " [.#" << r_x->name() << "] .+ [" << r_x->name() << "#.] " << dot_star;
+                query << dot_star << " [.#'" << escape(r_x->name()) << "'] .+ ['" << escape(r_x->name()) << "'#.] " << dot_star;
                 write_query(name + "k" + std::to_string(k) + "-" + std::to_string(type) + "-" + std::to_string(i) + ".q", query, k);
                 i++;
             }
