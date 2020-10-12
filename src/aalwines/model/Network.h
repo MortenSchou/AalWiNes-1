@@ -40,6 +40,8 @@
 #include <functional>
 #include <sstream>
 
+#include <aalwines/utils/ptr_vector.h>
+
 namespace aalwines {
     class Network {
     public:
@@ -66,8 +68,8 @@ namespace aalwines {
         template<typename... Args >
         Router* add_router(std::vector<std::string> names, Args&&... args) {
             auto id = _routers.size();
-            _routers.emplace_back(std::make_unique<Router>(id, names, std::forward<Args>(args)...));
-            auto router = _routers.back().get();;
+            _routers.emplace_back(id, names, std::forward<Args>(args)...);
+            auto router = _routers.back();
             for (const auto& router_name : names) {
                 auto res = _mapping.insert(router_name);
                 if (!res.first) {
@@ -81,7 +83,7 @@ namespace aalwines {
         }
         Router* get_router(size_t id);
         Router* find_router(const std::string& router_name);
-        [[nodiscard]] const std::vector<std::unique_ptr<Router>>& routers() const { return _routers; }
+        [[nodiscard]] const ptr_vector<Router>& routers() const { return _routers; }
         [[nodiscard]] size_t size() const { return _routers.size(); }
 
         std::pair<bool, Interface*> insert_interface_to(const std::string& interface_name, Router* router);
@@ -105,7 +107,8 @@ namespace aalwines {
 
     private:
         routermap_t _mapping;
-        std::vector<std::unique_ptr<Router>> _routers;
+        //std::vector<std::unique_ptr<Router>> _routers;
+        ptr_vector<Router> _routers;
         std::vector<const Interface*> _all_interfaces;
 
         void move_network(Network&& nested_network);

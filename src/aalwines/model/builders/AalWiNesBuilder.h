@@ -189,7 +189,7 @@ namespace nlohmann {
             j["name"] = network.name;
             j["routers"] = json::array();
             for (const auto& router : network.routers()) {
-                if (router->is_null()) continue;
+                if (router.is_null()) continue;
                 j["routers"].push_back(router);
             }
 

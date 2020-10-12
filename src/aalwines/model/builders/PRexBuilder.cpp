@@ -483,12 +483,12 @@ namespace aalwines {
     void PRexBuilder::write_prex_topology(const Network &network, std::ostream &s) {
         s << "<network>\n  <routers>\n";
         for(const auto& r : network.routers()) {
-            if(r->is_null()) continue;
-            if(r->interfaces().empty()) continue;
-            s << "    <router name=\"" << r->name() << "\">\n";
+            if(r.is_null()) continue;
+            if(r.interfaces().empty()) continue;
+            s << "    <router name=\"" << r.name() << "\">\n";
             s << "      <interfaces>\n";
-            for(const auto& inf : r->interfaces()) {
-                auto fname = r->interface_name(inf->id());
+            for(const auto& inf : r.interfaces()) {
+                auto fname = r.interface_name(inf->id());
                 s << "        <interface name=\"" << fname << "\"/>\n";
             }
             s << "      </interfaces>\n";
@@ -496,15 +496,15 @@ namespace aalwines {
         }
         s << "  </routers>\n  <links>\n";
         for(const auto& r : network.routers()) {
-            if(r->is_null()) continue;
-            for(const auto& inf : r->interfaces()) {
+            if(r.is_null()) continue;
+            for(const auto& inf : r.interfaces()) {
                 if(inf->source()->index() > inf->target()->index())
                     continue;
 
                 if(inf->source()->is_null()) continue;
                 if(inf->target()->is_null()) continue;
 
-                auto fname = r->interface_name(inf->id());
+                auto fname = r.interface_name(inf->id());
                 auto oname = inf->target()->interface_name(inf->match()->id());
                 s << "    <link>\n      <sides>\n" <<
                   "        <shared_interface interface=\"" << fname <<
@@ -522,24 +522,24 @@ namespace aalwines {
         s << "<routes>\n";
         s << "  <routings>\n";
         for(const auto& r : network.routers()) {
-            if(r->is_null()) continue;
+            if(r.is_null()) continue;
 
             // empty-check
             bool all_empty = true;
-            for(const auto& inf : r->interfaces())
+            for(const auto& inf : r.interfaces())
                 all_empty &= inf->table().empty();
             if(all_empty)
                 continue;
 
 
-            s << "    <routing for=\"" << r->name() << "\">\n";
+            s << "    <routing for=\"" << r.name() << "\">\n";
             s << "      <destinations>\n";
 
             // make uniformly sorted output, easier for debugging
             std::vector<std::pair<std::string,Interface*>> sinfs;
-            for(auto& inf : r->interfaces())
+            for(auto& inf : r.interfaces())
             {
-                auto fname = r->interface_name(inf->id());
+                auto fname = r.interface_name(inf->id());
                 sinfs.emplace_back(fname, inf.get());
             }
             std::sort(sinfs.begin(), sinfs.end(), [](auto& a, auto& b){
@@ -606,8 +606,8 @@ namespace aalwines {
                         }
                         if(!handled)
                         {
-                            assert(rule._via->source() == r.get());
-                            auto tname = r->interface_name(rule._via->id());
+                            //assert(rule._via->source() == r.get());
+                            auto tname = r.interface_name(rule._via->id());
                             s << "                <route to=\"" << tname << "\">\n";
                             s << "                  <actions>\n";
                             for(auto& o : rule._ops)

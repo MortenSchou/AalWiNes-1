@@ -44,8 +44,8 @@ namespace aalwines {
         _all_interfaces.reserve(other._all_interfaces.size());
         // Copy-construct routers
         for (const auto& router : other._routers) {
-            auto router_p = _routers.emplace_back(std::make_unique<Router>(*router)).get();
-            for (const auto& router_name : router->names()) {
+            auto router_p = _routers.emplace_back(router);
+            for (const auto& router_name : router.names()) {
                 _mapping[router_name] = router_p;
             }
         }
@@ -56,7 +56,7 @@ namespace aalwines {
 
         // Add interface pointers
         for (const auto& router : _routers) {
-            for (const auto& interface : router->interfaces()) {
+            for (const auto& interface : router.interfaces()) {
                 _all_interfaces.push_back(interface.get());
             }
         }
@@ -72,7 +72,7 @@ namespace aalwines {
 
         // Update pairings
         for (auto& router : _routers) {
-            for (auto& interface : router->interfaces()) {
+            for (auto& interface : router.interfaces()) {
                 auto match =  interface->match();
                 if (match != nullptr) {
                     assert(match->source() != nullptr);
@@ -89,7 +89,7 @@ namespace aalwines {
     }
 
     Router* Network::get_router(size_t id) {
-        return id < _routers.size() ? _routers[id].get() : nullptr;
+        return id < _routers.size() ? _routers[id] : nullptr;
     }
 
     std::pair<bool, Interface*> Network::insert_interface_to(const std::string& interface_name, Router* router) {
@@ -103,7 +103,7 @@ namespace aalwines {
     void Network::add_null_router() {
         auto null_router = add_router("NULL", true);
         for(const auto& r : routers()) {
-            for(const auto& inf : r->interfaces()) {
+            for(const auto& inf : r.interfaces()) {
                 if(inf->match() == nullptr) {
                     std::stringstream interface_name;
                     interface_name << "i" << inf->global_id();
@@ -119,12 +119,12 @@ namespace aalwines {
     {
         std::unordered_set<Query::label_t> res;
         for (auto& r : _routers) {
-            if (filter._from(r->name().c_str())) {
-                for (auto& i : r->interfaces()) {
+            if (filter._from(r.name().c_str())) {
+                for (auto& i : r.interfaces()) {
                     if (i->is_virtual()) continue;
                     // can we have empty interfaces??
                     assert(i);
-                    auto fname = r->interface_name(i->id());
+                    auto fname = r.interface_name(i->id());
                     std::string tname;
                     const char* tr = empty_string;
                     if (i->target() != nullptr) {
@@ -148,18 +148,18 @@ namespace aalwines {
 
         // Move old network into new network.
         for (auto&& e : nested_network._routers) {
-            if (e->is_null()) {
+            if (e.is_null()) {
                 continue;
             }
             // Find unique name for router
-            std::string new_name = e->name();
+            std::string new_name = e.name();
             while(_mapping.exists(new_name).first){
                 new_name += "'";
             }
-            e->change_name(new_name);
+            e.change_name(new_name);
 
             // Add interfaces to _all_interfaces and update their global id.
-            for (auto&& inf: e->interfaces()) {
+            for (auto&& inf: e.interfaces()) {
                 inf->set_global_id(_all_interfaces.size());
                 _all_interfaces.push_back(inf.get());
                 // Transfer links from old NULL router to new NULL router.
@@ -171,9 +171,9 @@ namespace aalwines {
             }
 
             // Move router to new network
-            e->set_index(_routers.size());
+            e.set_index(_routers.size());
             _routers.emplace_back(std::move(e));
-            _mapping[new_name] = _routers.back().get();
+            _mapping[new_name] = _routers.back();
         }
     }
 
@@ -216,22 +216,22 @@ namespace aalwines {
     void Network::print_dot(std::ostream& s) const {
         s << "digraph network {\n";
         for (const auto& r : _routers) {
-            r->print_dot(s);
+            r.print_dot(s);
         }
         s << "}" << std::endl;
     }
     void Network::print_simple(std::ostream& s) const {
         for(const auto& r : _routers) {
-            s << "router: \"" << r->name() << "\":\n";
-            r->print_simple(s);
+            s << "router: \"" << r.name() << "\":\n";
+            r.print_simple(s);
         }
     }
     void Network::print_json(json_stream& json_output) const {
         json_output.begin_object("routers");
         for(const auto& r : _routers) {
-            if (r->is_null()) continue;
-            json_output.begin_object(r->name());
-            r->print_json(json_output);
+            if (r.is_null()) continue;
+            json_output.begin_object(r.name());
+            r.print_json(json_output);
             json_output.end_object();
         }
         json_output.end_object();
