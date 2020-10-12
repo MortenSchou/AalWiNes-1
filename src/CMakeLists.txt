@@ -25,6 +25,10 @@ target_include_directories(aalwines PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(aalwines-bin main.cpp)
 target_link_libraries(aalwines-bin PRIVATE aalwines)
 set_target_properties(aalwines-bin PROPERTIES OUTPUT_NAME aalwines)
+
+add_executable(analyse-net AnalyseNetwork.cpp)
+target_link_libraries(analyse-net PRIVATE aalwines)
+
 install(TARGETS aalwines aalwines-bin
 		RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
