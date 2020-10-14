@@ -35,11 +35,37 @@
 
 using namespace aalwines;
 
-void search_all_paths(const std::vector<const Interface*>& stack, const Query::label_t top_label, std::map<std::vector<const Interface*>, size_t>& paths, std::map<std::vector<const Router*>, size_t>& router_paths, bool& progress) {
+
+std::stack<Query::label_t> apply_ops(const std::vector<RoutingTable::action_t>& ops, const std::stack<Query::label_t>& label_stack) {
+    std::stack<Query::label_t> new_stack{label_stack};
+    for (const auto& operation : ops) {
+        switch (operation._op) {
+            case RoutingTable::op_t::POP:
+                if (new_stack.empty()) {
+                    return new_stack;
+                }
+                new_stack.pop();
+                break;
+            case RoutingTable::op_t::SWAP:
+                if (new_stack.empty()) {
+                    return new_stack;
+                }
+                new_stack.top() = operation._op_label;
+                break;
+            case RoutingTable::op_t::PUSH:
+                new_stack.push(operation._op_label);
+                break;
+        }
+    }
+    return new_stack;
+}
+
+void search_all_paths(const std::vector<const Interface*>& stack, const std::stack<Query::label_t>& label_stack, std::map<std::vector<const Interface*>, size_t>& paths, std::map<std::vector<const Router*>, size_t>& router_paths, bool& progress) {
+    if (stack.size() > 50) return; // Break infinite recursion caused by forwarding loops.
     for (const auto& entry : stack.back()->match()->table().entries()) {
-        if (!entry._top_label.overlaps(top_label)) continue;
+        if (!entry._top_label.overlaps(label_stack.top())) continue;
         for (const auto& rule : entry._rules) {
-            if (rule._type != RoutingTable::MPLS) continue; // Only use MPLS rules. The other types are undocumented, and I don't know what they do.
+            if (rule._type != RoutingTable::MPLS || rule._priority > 1) continue; // Only use MPLS rules. The other types are undocumented, and I don't know what they do.
             if (rule._via->target()->is_null()) {
                 std::vector<const Interface*> new_stack;
                 new_stack.reserve(stack.size() + 1);
@@ -53,12 +79,15 @@ void search_all_paths(const std::vector<const Interface*>& stack, const Query::l
                 }
                 ++router_paths[router_path];
                 progress = true;
-            } else if (!rule._ops.empty() && rule._ops.back()._op == RoutingTable::op_t::SWAP) {
-                std::vector<const Interface*> new_stack;
-                new_stack.reserve(stack.size() + 1);
-                std::copy(stack.begin(), stack.end(), std::back_inserter(new_stack));
-                new_stack.push_back(rule._via);
-                search_all_paths(new_stack, rule._ops.back()._op_label, paths, router_paths, progress);
+            } else {
+                auto new_label_stack = apply_ops(rule._ops, label_stack);
+                if (!new_label_stack.empty()) {
+                    std::vector<const Interface*> new_stack;
+                    new_stack.reserve(stack.size() + 1);
+                    std::copy(stack.begin(), stack.end(), std::back_inserter(new_stack));
+                    new_stack.push_back(rule._via);
+                    search_all_paths(new_stack, new_label_stack, paths, router_paths, progress);
+                }
             }
         }
     }
@@ -74,7 +103,12 @@ void analyse_paths(const Network& network) {
             if (interface->target()->is_null()){
                 for (const auto& entry : interface->table().entries()) {
                     bool progress = false;
-                    search_all_paths(std::vector<const Interface*>{interface->match()}, entry._top_label, paths, router_paths, progress);
+                    std::stack<Query::label_t> label_stack;
+                    if (!entry._top_label.overlaps(Query::label_t::any_ip)) {
+                        label_stack.push(Query::label_t::any_ip);
+                    }
+                    label_stack.push(entry._top_label);
+                    search_all_paths(std::vector<const Interface*>{interface->match()}, label_stack, paths, router_paths, progress);
                     if (!progress) {
                         ++fails;
                     }
