@@ -24,9 +24,7 @@
  * Created on 12-10-2020.
  */
 
-#include <aalwines/model/builders/JuniperBuilder.h>
-#include <aalwines/model/builders/PRexBuilder.h>
-#include <aalwines/model/builders/AalWiNesBuilder.h>
+#include <aalwines/model/builders/NetworkParsing.h>
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <string>
@@ -184,31 +182,14 @@ int main(int argc, const char** argv) {
     po::options_description opts;
     opts.add_options()
             ("help,h", "produce help message");
-    po::options_description input("Input Options");
-    std::string json_file;
-    bool no_parser_warnings = false;
-    std::string junos_config, prex_topo, prex_routing;
-    bool skip_pfe = false;
-    input.add_options()
-            ("input", po::value<std::string>(&json_file),
-             "An json-file defining the network in the AalWiNes MPLS Network format")
-            ("disable-parser-warnings,W", po::bool_switch(&no_parser_warnings), "Disable warnings from parser.")
-            ("juniper", po::value<std::string>(&junos_config),
-             "A file containing a network-description; each line is a router in the format \"name,alias1,alias2:adjacency.xml,mpls.xml,pfe.xml\". ")
-            ("topology", po::value<std::string>(&prex_topo),
-             "An xml-file defining the topology in the P-Rex format")
-            ("routing", po::value<std::string>(&prex_routing),
-             "An xml-file defining the routing in the P-Rex format")
-            ("skip-pfe", po::bool_switch(&skip_pfe),
-             "Skip \"indirect\" cases of juniper-routing as package-drops (compatability with P-Rex semantics).")
-            ;
-/*  input.add_options()
-            ("input", po::value<std::string>(&json_file),
-             "An json-file defining the network in the AalWiNes MPLS Network format")
-            ("disable-parser-warnings,W", po::bool_switch(&no_parser_warnings), "Disable warnings from parser.")
-            ;*/
 
-    opts.add(input);
+    NetworkParsing parser{"Input Options"};
+    bool no_parser_warnings = false;
+
+    auto options = parser.options();
+    options.add_options()
+        ("disable-parser-warnings,W", po::bool_switch(&no_parser_warnings), "Disable warnings from parser.");
+    opts.add(options);
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, opts), vm);
     po::notify(vm);
@@ -217,51 +198,7 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
-    if(!json_file.empty() && (!prex_routing.empty() || !prex_topo.empty() || !junos_config.empty()))
-    {
-        std::cerr << "--input cannot be used with --junos or --topology or --routing." << std::endl;
-        exit(-1);
-    }
-
-    if(!junos_config.empty() && (!prex_routing.empty() || !prex_topo.empty()))
-    {
-        std::cerr << "--junos cannot be used with --topology or --routing." << std::endl;
-        exit(-1);
-    }
-
-    if(prex_routing.empty() != prex_topo.empty())
-    {
-        std::cerr << "Both --topology and --routing have to be non-empty." << std::endl;
-        exit(-1);
-    }
-
-    if(junos_config.empty() && prex_routing.empty() && prex_topo.empty() && json_file.empty())
-    {
-        std::cerr << "Either a Junos configuration or a P-Rex configuration or an AalWiNes json configuration must be given." << std::endl;
-        exit(-1);
-    }
-
-    if(skip_pfe && junos_config.empty())
-    {
-        std::cerr << "--skip-pfe is only avaliable for --junos configurations." << std::endl;
-        exit(-1);
-    }
-
-    std::stringstream dummy;
-    std::ostream& warnings = no_parser_warnings ? dummy : std::cerr;
-
-    auto network = junos_config.empty() ? (json_file.empty() ?
-                   PRexBuilder::parse(prex_topo, prex_routing, warnings) :
-                   AalWiNesBuilder::parse(json_file, warnings)) :
-                   JuniperBuilder::parse(junos_config, warnings, skip_pfe);
-
-    /*
-    if(json_file.empty())
-    {
-        std::cerr << "--input must be specified" << std::endl;
-        exit(-1);
-    }*/
-    // auto network = AalWiNesBuilder::parse(json_file, warnings);
+    auto network = parser.parse(no_parser_warnings);
 
     std::cout << "Finding all paths..." << std::endl;
     analyse_paths(network);
