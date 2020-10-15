@@ -47,14 +47,14 @@ namespace aalwines {
         _interface_map = string_map<Interface*>(); // Start from empty map instead
 
         for (auto& interface : router._interfaces) {
-            assert(_interfaces.size() == interface->id());
-            auto new_interface = _interfaces.emplace_back(std::make_unique<Interface>(*interface)).get();
-            _interface_map[interface->get_name()] = new_interface;
+            assert(_interfaces.size() == interface.id());
+            auto new_interface = _interfaces.emplace_back(interface);
+            _interface_map[interface.get_name()] = new_interface;
             new_interface->_parent = this;
         }
         for (auto& interface : _interfaces) {
-            interface->table().update_interfaces([this](const Interface* old) -> Interface* {
-                return old == nullptr ? nullptr : this->_interfaces[old->id()].get();
+            interface.table().update_interfaces([this](const Interface* old) -> Interface* {
+                return old == nullptr ? nullptr : this->_interfaces[old->id()];
             });
         }
         return *this;
@@ -82,8 +82,7 @@ namespace aalwines {
         }
         auto iid = _interfaces.size();
         auto gid = all_interfaces.size();
-        _interfaces.emplace_back(std::make_unique<Interface>(iid, gid, this));
-        auto interface = _interfaces.back().get();
+        auto interface = _interfaces.emplace_back(iid, gid, this);
         all_interfaces.emplace_back(interface);
         _interface_map.get_data(res.second) = interface;
         return std::make_pair(true, interface);
@@ -114,8 +113,7 @@ namespace aalwines {
             return _interface_map.get_data(res.second);
         auto iid = _interfaces.size();
         auto gid = all_interfaces.size();
-        _interfaces.emplace_back(std::make_unique<Interface>(iid, gid, expected, this));
-        auto interface = _interfaces.back().get();
+        auto interface = _interfaces.emplace_back(iid, gid, expected, this);
         all_interfaces.emplace_back(interface);
         _interface_map.get_data(res.second) = interface;
         return interface;
@@ -141,21 +139,19 @@ namespace aalwines {
         }
         _matching = nullptr;
         for (auto& i : _target->_interfaces) {
-            if(matcher(this, i.get()))
-            {
-                if(_matching != nullptr)
-                {
+            if(matcher(this, &i)) {
+                if(_matching != nullptr) {
                     std::stringstream e;
                     e << "Non-unique paring of links between " << _parent->name() << " and " << _target->name() << "\n";
                     auto n = _parent->interface_name(_id);
                     auto n2 = _target->interface_name(_matching->_id);
-                    auto n3 = _target->interface_name(i->_id);
+                    auto n3 = _target->interface_name(i._id);
                     e << n << " could be matched with both :\n";
                     e << n2 << " and\n";
                     e << n3 << std::endl;
                     throw base_error(e.str());
                 }
-                _matching = i.get();
+                _matching = &i;
             }            
         }
 
@@ -184,7 +180,7 @@ namespace aalwines {
 
     void Router::pair_interfaces(std::vector<const Interface*>& interfaces, std::function<bool(const Interface*, const Interface*)> matcher) {
         for (auto& i : _interfaces)
-            i->make_pairing(interfaces, matcher);
+            i.make_pairing(interfaces, matcher);
     }
 
     void Router::print_dot(std::ostream& out) const {
@@ -192,8 +188,8 @@ namespace aalwines {
             return;
         std::string n;
         for (auto& i : _interfaces) {
-            n = interface_name(i->id());
-            auto tgtstring = i->target() != nullptr ? i->target()->name() : "SINK";
+            n = interface_name(i.id());
+            auto tgtstring = i.target() != nullptr ? i.target()->name() : "SINK";
             out << "\"" << name() << "\" -> \"" << tgtstring
                     << "\" [ label=\"" << n << "\" ];\n";
         }
@@ -209,9 +205,9 @@ namespace aalwines {
     void Router::print_simple(std::ostream& s) const {
         for(auto& i : _interfaces)
         {
-            auto name = interface_name(i->id());
+            auto name = interface_name(i.id());
             s << "\tinterface: \"" << name << "\"\n";
-            const RoutingTable& table = i->table();
+            const RoutingTable& table = i.table();
             for(auto& e : table.entries())
             {
                 s << "\t\t[" << e._top_label << "] {\n";
@@ -247,21 +243,14 @@ namespace aalwines {
         }
         std::unordered_map<std::string,std::unordered_set<Query::label_t>> interfaces;
         std::set<std::string> targets;
-        std::string if_name;
-        for(auto& i : _interfaces)
-        {
-            if_name = interface_name(i->id());
-            auto& label_set = interfaces.try_emplace(if_name).first->second;
-
-            const RoutingTable& table = i->table();
-            for(auto& e : table.entries())
-            {
+        for(const auto& i : _interfaces) {
+            auto& label_set = interfaces[interface_name(i.id())];
+            
+            for(const auto& e : i.table().entries()) {
                 label_set.emplace(e._top_label);
-                for(auto& fwd : e._rules)
-                {
+                for(const auto& fwd : e._rules) {
                     auto via = fwd._via;
-                    if (via)
-                    {
+                    if (via) {
                         auto tn = via->target()->name();
                         targets.insert(tn);
                     }
@@ -275,14 +264,14 @@ namespace aalwines {
         json_output.entry("targets", json_targets);
 
         json_output.begin_object("interfaces");
-        for(const auto& in : interfaces) {
-            auto labels = json::array();
-            for (const auto& label : in.second) {
+        for(const auto& [name, labels] : interfaces) {
+            auto json_labels = json::array();
+            for (const auto& label : labels) {
                 std::stringstream s;
                 s << label;
-                labels.push_back(s.str());
+                json_labels.push_back(s.str());
             }
-            json_output.entry(in.first, labels);
+            json_output.entry(name, json_labels);
         }
         json_output.end_object();
     }

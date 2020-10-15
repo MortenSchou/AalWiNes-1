@@ -46,7 +46,7 @@ namespace aalwines {
             std::vector<std::unique_ptr<queue_elem<Edge,Weight>>>& pointers,
             Node start_node, EdgeFn&& edges, TargetFn&& target_node, AcceptFn&& accept, FilterFn&& filter_out, CostFn&& cost_fn) {
         static_assert(std::is_convertible_v<EdgeFn, std::function<std::vector<Edge>(Node)>>);
-        static_assert(std::is_convertible_v<TargetFn, std::function<Router*(Edge)>>);
+        static_assert(std::is_convertible_v<TargetFn, std::function<Node(Edge)>>);
         static_assert(std::is_convertible_v<AcceptFn, std::function<bool(Edge)>>);
         static_assert(std::is_convertible_v<FilterFn, std::function<bool(Edge)>>);
         static_assert(std::is_convertible_v<CostFn, std::function<Weight(Edge)>>);
@@ -79,10 +79,10 @@ namespace aalwines {
                                          const std::function<uint32_t(const Interface*)>& cost_fn) {
         std::vector<std::unique_ptr<queue_elem<Interface*,uint32_t>>> pointers;
         auto val = dijkstra(pointers, failed_inf->source(),
-            [](const Router* node) { // Get edges in node
+            [](Router* node) { // Get edges in node
                 std::vector<Interface*> result(node->interfaces().size());
                 std::transform(node->interfaces().begin(), node->interfaces().end(), result.begin(),
-                        [](const auto &i){ return i.get(); });
+                        [](Interface& i){ return &i; });
                 return result; // TODO: When C++20 comes with std::ranges, use a transform_view
             },
             [](const Interface* interface) { return interface->target(); }, // Get target of edge
@@ -110,35 +110,34 @@ namespace aalwines {
         }
         assert(p == nullptr);
         // PUSH at first hop of re-route
-        for (const auto& i : via->source()->interfaces()) {
-            auto interface = i.get();
-            if (interface == failed_inf) continue;
-            interface->table().add_failover_entries(failed_inf, via, label);
+        for (auto& interface : via->source()->interfaces()) {
+            if (&interface == failed_inf) continue;
+            interface.table().add_failover_entries(failed_inf, via, label);
         }
         return true;
     }
 
-    Interface* find_via_interface(const Router* from, const Router* to) {
-        for (const auto& i : from->interfaces()) {
-            if (i->target() == to){
-                return i.get();
+    Interface* find_via_interface(Router* from, const Router* to) {
+        for (auto& i : from->interfaces()) {
+            if (i.target() == to){
+                return &i;
             }
         }
         return nullptr;
     }
-    Interface* find_interface_on_router(const Router* router, const Interface* interface) {
+    Interface* find_interface_on_router(Router* router, const Interface* interface) {
         // Basically removes const from the Interface*, and checks if the interface is actually on the router.
         if (interface->source() == router) {
-            for (const auto& i : router->interfaces()) {
-                if (i.get() == interface){
-                    return i.get();
+            for (auto& i : router->interfaces()) {
+                if (&i == interface){
+                    return &i;
                 }
             }
         }
         return nullptr;
     }
     bool RouteConstruction::make_data_flow(const Interface* from, const Interface* to,
-                                           const std::function<label_t(void)>& next_label, const std::vector<const Router*>& path) {
+                                           const std::function<label_t(void)>& next_label, const std::vector<Router*>& path) {
         assert(!path.empty());
         // Check if the interfaces is 'outer' interfaces.
         assert(from->target()->is_null());
@@ -182,10 +181,10 @@ namespace aalwines {
         }
         std::vector<std::unique_ptr<queue_elem<Interface *, uint32_t>>> pointers;
         auto val = dijkstra(pointers, from->source(),
-                            [](const Router *node) { // Get edges in node
+                            [](Router *node) { // Get edges in node
                                 std::vector<Interface *> result(node->interfaces().size());
                                 std::transform(node->interfaces().begin(), node->interfaces().end(), result.begin(),
-                                               [](const auto &i) { return i.get(); });
+                                               [](Interface& i) { return &i; });
                                 return result; // TODO: When C++20 comes with std::ranges, use a transform_view
                             },
                             [](const Interface *interface) { return interface->target(); }, // Get target of edge

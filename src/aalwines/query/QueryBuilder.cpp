@@ -263,7 +263,7 @@ namespace aalwines
             res.insert(Query::label_t::any_ip6);
             for (const auto& r : _network.routers()) {
                 for (const auto& inf : r.interfaces()) {
-                    for (const auto& e : inf->table().entries()) {
+                    for (const auto& e : inf.table().entries()) {
                         res.insert(e._top_label);
                         for (const auto& f : e._rules) {
                             for (const auto& o : f._ops) {

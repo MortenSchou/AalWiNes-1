@@ -43,6 +43,9 @@
 #include <aalwines/utils/ptr_vector.h>
 
 namespace aalwines {
+    template <typename T>
+    using ptr_vector = utils::ptr_vector<T>;
+
     class Network {
     public:
         using routermap_t = string_map<Router*>;
@@ -68,8 +71,7 @@ namespace aalwines {
         template<typename... Args >
         Router* add_router(std::vector<std::string> names, Args&&... args) {
             auto id = _routers.size();
-            _routers.emplace_back(id, names, std::forward<Args>(args)...);
-            auto router = _routers.back();
+            auto router = _routers.emplace_back(id, names, std::forward<Args>(args)...);
             for (const auto& router_name : names) {
                 auto res = _mapping.insert(router_name);
                 if (!res.first) {
@@ -83,6 +85,7 @@ namespace aalwines {
         }
         Router* get_router(size_t id);
         Router* find_router(const std::string& router_name);
+        ptr_vector<Router>& routers() { return _routers; }
         [[nodiscard]] const ptr_vector<Router>& routers() const { return _routers; }
         [[nodiscard]] size_t size() const { return _routers.size(); }
 
@@ -107,7 +110,6 @@ namespace aalwines {
 
     private:
         routermap_t _mapping;
-        //std::vector<std::unique_ptr<Router>> _routers;
         ptr_vector<Router> _routers;
         std::vector<const Interface*> _all_interfaces;
 

@@ -122,11 +122,11 @@ BOOST_AUTO_TEST_CASE(JSON_format_IO_test) {
 
     BOOST_CHECK_EQUAL(network.name, "Test Network");
     BOOST_CHECK_EQUAL(network.routers().size(), 4); // 3 routers + 1 null-router
-    auto r1 = network.routers()[0].get();
+    auto r1 = network.routers()[0];
     std::vector<std::string> r1_names{"router 1", "alternative name for router 1"};
     BOOST_CHECK_EQUAL_COLLECTIONS(r1->names().begin(), r1->names().end(), r1_names.begin(), r1_names.end());
 
-    auto r2 = network.routers()[1].get();
+    auto r2 = network.routers()[1];
     BOOST_CHECK(r2->coordinate().has_value());
     BOOST_CHECK_EQUAL(r2->coordinate()->latitude(), 0);
     BOOST_CHECK_EQUAL(r2->coordinate()->longitude(), 9.1234567890123456789);

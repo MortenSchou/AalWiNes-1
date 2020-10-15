@@ -80,10 +80,10 @@ BOOST_AUTO_TEST_CASE(FastRerouteWithDataFlowTest) {
                                                 {"Router5"}};
     auto network = Network::make_network(names, links);
 
-    std::vector<const Router*> path {network.get_router(0),
-                                     network.get_router(1),
-                                     network.get_router(4),
-                                     network.get_router(5)};
+    std::vector<Router*> path {network.get_router(0),
+                               network.get_router(1),
+                               network.get_router(4),
+                               network.get_router(5)};
     auto fail_interface = network.get_router(1)->find_interface(names[4]);
     uint64_t i = 42;
     auto next_label = [&i](){return Query::label_t(Query::type_t::MPLS, 0, i++);};
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(DataFlowTest) {
                                                 {"Router5"}};
     auto network = Network::make_network(names, links);
 
-    std::vector<const Router*> path {network.get_router(0),
+    std::vector<Router*> path {network.get_router(0),
                                      network.get_router(1),
                                      network.get_router(4),
                                      network.get_router(5)};
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(ShortDataFlowTest) {
                                                 {"Router1"}};
     auto network = Network::make_network(names, links);
 
-    std::vector<const Router*> path {network.get_router(0), network.get_router(1)};
+    std::vector<Router*> path {network.get_router(0), network.get_router(1)};
 
     BOOST_TEST_MESSAGE("Before: ");
     std::stringstream s_before;
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(ShortestDataFlowTest) {
     std::vector<std::vector<std::string>> links{{"iRouter1", "oRouter1"}};
     auto network = Network::make_network(names, links);
 
-    std::vector<const Router*> path {network.get_router(0)};
+    std::vector<Router*> path {network.get_router(0)};
 
     BOOST_TEST_MESSAGE("Before: ");
     std::stringstream s_before;

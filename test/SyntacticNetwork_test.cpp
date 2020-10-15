@@ -168,7 +168,7 @@ void build_query(const std::string& query, Network& synthetic_network, Builder b
 BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace) {
     Network synthetic_network = construct_synthetic_network(2);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(5),
                                      synthetic_network.get_router(7),
                                      synthetic_network.get_router(9)};
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace) {
 BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace1) {
     Network synthetic_network = construct_synthetic_network(1);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(2),
                                      synthetic_network.get_router(4)};
     uint64_t i = 42;
@@ -270,7 +270,7 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace1) {
 BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace2) {
     Network synthetic_network = construct_synthetic_network(5);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(5),
                                      synthetic_network.get_router(10),
                                      synthetic_network.get_router(15),
@@ -325,7 +325,7 @@ BOOST_AUTO_TEST_CASE(NetworkInjectionAndTrace2) {
 BOOST_AUTO_TEST_CASE(NetworkConcatenationAndTrace) {
     Network synthetic_network = construct_synthetic_network(1);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(1),
                                      synthetic_network.get_router(3),
                                      synthetic_network.get_router(2),
@@ -376,7 +376,7 @@ BOOST_AUTO_TEST_CASE(NetworkConcatenationAndTrace) {
 BOOST_AUTO_TEST_CASE(NetworkConcatenationAndTrace1) {
     Network synthetic_network = construct_synthetic_network(5);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(5),
                                      synthetic_network.get_router(10),
                                      synthetic_network.get_router(15),
@@ -423,7 +423,7 @@ BOOST_AUTO_TEST_CASE(NetworkConcatenationAndTrace1) {
 BOOST_AUTO_TEST_CASE(SyntheticNetworkPerformance) {
     Network synthetic_network = construct_synthetic_network(1);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(2),
                                      synthetic_network.get_router(4)};
     uint64_t i = 42;
@@ -446,7 +446,7 @@ BOOST_AUTO_TEST_CASE(SyntheticNetworkPerformance) {
 BOOST_AUTO_TEST_CASE(SyntheticNetworkPerformance1) {
     Network synthetic_network = construct_synthetic_network(5);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(5),
                                      synthetic_network.get_router(10),
                                      synthetic_network.get_router(15),
@@ -473,7 +473,7 @@ BOOST_AUTO_TEST_CASE(SyntheticNetworkPerformance1) {
 BOOST_AUTO_TEST_CASE(SyntheticNetworkPerformanceInjection) {
     Network synthetic_network = construct_synthetic_network(5);
 
-    std::vector<const Router*> path {synthetic_network.get_router(0),
+    std::vector<Router*> path {synthetic_network.get_router(0),
                                      synthetic_network.get_router(5),
                                      synthetic_network.get_router(10),
                                      synthetic_network.get_router(15),

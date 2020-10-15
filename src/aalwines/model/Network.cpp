@@ -57,7 +57,7 @@ namespace aalwines {
         // Add interface pointers
         for (const auto& router : _routers) {
             for (const auto& interface : router.interfaces()) {
-                _all_interfaces.push_back(interface.get());
+                _all_interfaces.push_back(&interface);
             }
         }
         // Ensure global_id of interfaces is correct.
@@ -73,10 +73,10 @@ namespace aalwines {
         // Update pairings
         for (auto& router : _routers) {
             for (auto& interface : router.interfaces()) {
-                auto match =  interface->match();
+                auto match = interface.match();
                 if (match != nullptr) {
                     assert(match->source() != nullptr);
-                    interface->make_pairing(_routers[match->source()->index()]->interfaces()[match->id()].get());
+                    interface.make_pairing(_routers[match->source()->index()]->interfaces()[match->id()]);
                 }
             }
         }
@@ -102,12 +102,12 @@ namespace aalwines {
 
     void Network::add_null_router() {
         auto null_router = add_router("NULL", true);
-        for(const auto& r : routers()) {
-            for(const auto& inf : r.interfaces()) {
-                if(inf->match() == nullptr) {
+        for(auto& r : routers()) {
+            for(auto& inf : r.interfaces()) {
+                if(inf.match() == nullptr) {
                     std::stringstream interface_name;
-                    interface_name << "i" << inf->global_id();
-                    insert_interface_to(interface_name.str(), null_router).second->make_pairing(inf.get());
+                    interface_name << "i" << inf.global_id();
+                    insert_interface_to(interface_name.str(), null_router).second->make_pairing(&inf);
                 }
             }
         }
@@ -121,20 +121,20 @@ namespace aalwines {
         for (auto& r : _routers) {
             if (filter._from(r.name().c_str())) {
                 for (auto& i : r.interfaces()) {
-                    if (i->is_virtual()) continue;
+                    if (i.is_virtual()) continue;
                     // can we have empty interfaces??
-                    assert(i);
-                    auto fname = r.interface_name(i->id());
+                    //assert(i); // nullptrs are not possible in ptr_vector
+                    auto fname = r.interface_name(i.id());
                     std::string tname;
                     const char* tr = empty_string;
-                    if (i->target() != nullptr) {
-                        if (i->match() != nullptr) {
-                            tname = i->target()->interface_name(i->match()->id());
+                    if (i.target() != nullptr) {
+                        if (i.match() != nullptr) {
+                            tname = i.target()->interface_name(i.match()->id());
                         }
-                        tr = i->target()->name().c_str();
+                        tr = i.target()->name().c_str();
                     }
                     if (filter._link(fname.c_str(), tname.c_str(), tr)) {
-                        res.insert(Query::label_t{Query::INTERFACE, 0, i->global_id()}); // TODO: little hacksy, but we have uniform types in the parser
+                        res.insert(Query::label_t{Query::INTERFACE, 0, i.global_id()}); // TODO: little hacksy, but we have uniform types in the parser
                     }
                 }
             }
@@ -147,7 +147,7 @@ namespace aalwines {
         auto null_router = _mapping["NULL"];
 
         // Move old network into new network.
-        for (auto&& e : nested_network._routers) {
+        for (auto& e : nested_network._routers) {
             if (e.is_null()) {
                 continue;
             }
@@ -159,21 +159,20 @@ namespace aalwines {
             e.change_name(new_name);
 
             // Add interfaces to _all_interfaces and update their global id.
-            for (auto&& inf: e.interfaces()) {
-                inf->set_global_id(_all_interfaces.size());
-                _all_interfaces.push_back(inf.get());
+            for (auto& inf: e.interfaces()) {
+                inf.set_global_id(_all_interfaces.size());
+                _all_interfaces.push_back(&inf);
                 // Transfer links from old NULL router to new NULL router.
-                if (inf->target()->is_null()){
+                if (inf.target()->is_null()){
                     std::stringstream ss;
-                    ss << "i" << inf->global_id();
-                    insert_interface_to(ss.str(), null_router).second->make_pairing(inf.get());
+                    ss << "i" << inf.global_id();
+                    insert_interface_to(ss.str(), null_router).second->make_pairing(&inf);
                 }
             }
 
             // Move router to new network
             e.set_index(_routers.size());
-            _routers.emplace_back(std::move(e));
-            _mapping[new_name] = _routers.back();
+            _mapping[new_name] = _routers.emplace_back(std::move(e));
         }
     }
 
@@ -196,7 +195,7 @@ namespace aalwines {
 
         // Add push and pop rules.
         for (auto&& interface : link->source()->interfaces()) {
-            interface->table().add_to_outgoing(link, {RoutingTable::op_t::PUSH, pre_label});
+            interface.table().add_to_outgoing(link, {RoutingTable::op_t::PUSH, pre_label});
         }
         virtual_guard->table().add_rule(post_label, {RoutingTable::op_t::POP, RoutingTable::label_t{}}, nested_end_link);
     }

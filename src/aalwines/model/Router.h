@@ -36,6 +36,7 @@
 #include <ptrie/ptrie_map.h>
 #include <aalwines/utils/coordinate.h>
 #include <aalwines/utils/string_map.h>
+#include <aalwines/utils/ptr_vector.h>
 
 #include "RoutingTable.h"
 
@@ -44,6 +45,9 @@
 using json = nlohmann::json;
 
 namespace aalwines {
+    template <typename T>
+    using ptr_vector = utils::ptr_vector<T>;
+
     class Interface {
     public:
         Interface(size_t id, size_t global_id, Router* target, Router* parent)
@@ -127,7 +131,8 @@ namespace aalwines {
         [[nodiscard]] const std::vector<std::string>& names() const { return _names; }
 
         void print_dot(std::ostream& out) const;
-        [[nodiscard]] const std::vector<std::unique_ptr<Interface>>& interfaces() const { return _interfaces; }
+        ptr_vector<Interface>& interfaces() { return _interfaces; }
+        [[nodiscard]] const ptr_vector<Interface>& interfaces() const { return _interfaces; }
         std::pair<bool,Interface*> insert_interface(const std::string& interface_name, std::vector<const Interface*>& all_interfaces);
         Interface* get_interface(const std::string& interface_name, std::vector<const Interface*>& all_interfaces);
         Interface* find_interface(const std::string& interface_name);
@@ -147,7 +152,7 @@ namespace aalwines {
         std::vector<std::string> _names;
         std::optional<Coordinate> _coordinate = std::nullopt;
         bool _is_null = false;
-        std::vector<std::unique_ptr<Interface>> _interfaces;
+        ptr_vector<Interface> _interfaces;
         string_map<Interface*> _interface_map;
         friend class Interface;
     };

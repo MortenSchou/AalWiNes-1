@@ -45,7 +45,7 @@ namespace aalwines {
         }
 
         static bool make_data_flow(const Interface* from, const Interface* to,
-                const std::function<label_t(void)>& next_label, const std::vector<const Router*>& path);
+                const std::function<label_t(void)>& next_label, const std::vector<Router*>& path);
         static bool make_data_flow(Interface* from, const std::vector<Interface*>& path,
                 const std::function<label_t(void)>& next_label);
         static bool make_data_flow(Interface* from, Interface* to, const std::function<label_t(void)>& next_label,

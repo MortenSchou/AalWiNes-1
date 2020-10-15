@@ -425,11 +425,11 @@ namespace aalwines
                     for (auto& inf : router.interfaces()) {
                         // add table to all interfaces (needed as some routers can have rules matching
                         // both TOS and interface
-                        if(!inf->table().merge(rt, *inf, warnings))
+                        if(!inf.table().merge(rt, inf, warnings))
                             warnings << "warning: nondeterministic routing discovered for " << router.name() << " in table " << n->first_node("table-name")->value() << std::endl;    
 #ifndef NDEBUG
-                        for(auto& e : inf->table().entries())
-                            assert(e._ingoing == inf.get());
+                        for(auto& e : inf.table().entries())
+                            assert(e._ingoing == &inf);
 #endif
                     }
                 }

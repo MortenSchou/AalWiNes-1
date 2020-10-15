@@ -470,7 +470,7 @@ namespace aalwines {
                     {
                         for(auto& inf : router->interfaces())
                         {
-                            inf->table().merge(table, *inf, warnings);
+                            inf.table().merge(table, inf, warnings);
                         }
                     }
                     dest = dest->next_sibling("destination");
@@ -488,7 +488,7 @@ namespace aalwines {
             s << "    <router name=\"" << r.name() << "\">\n";
             s << "      <interfaces>\n";
             for(const auto& inf : r.interfaces()) {
-                auto fname = r.interface_name(inf->id());
+                auto fname = r.interface_name(inf.id());
                 s << "        <interface name=\"" << fname << "\"/>\n";
             }
             s << "      </interfaces>\n";
@@ -498,19 +498,19 @@ namespace aalwines {
         for(const auto& r : network.routers()) {
             if(r.is_null()) continue;
             for(const auto& inf : r.interfaces()) {
-                if(inf->source()->index() > inf->target()->index())
+                if(inf.source()->index() > inf.target()->index())
                     continue;
 
-                if(inf->source()->is_null()) continue;
-                if(inf->target()->is_null()) continue;
+                if(inf.source()->is_null()) continue;
+                if(inf.target()->is_null()) continue;
 
-                auto fname = r.interface_name(inf->id());
-                auto oname = inf->target()->interface_name(inf->match()->id());
+                auto fname = r.interface_name(inf.id());
+                auto oname = inf.target()->interface_name(inf.match()->id());
                 s << "    <link>\n      <sides>\n" <<
                   "        <shared_interface interface=\"" << fname <<
-                  "\" router=\"" << inf->source()->name() << "\"/>\n" <<
+                  "\" router=\"" << inf.source()->name() << "\"/>\n" <<
                   "        <shared_interface interface=\"" << oname <<
-                  "\" router=\"" << inf->target()->name() << "\"/>\n" <<
+                  "\" router=\"" << inf.target()->name() << "\"/>\n" <<
                   "      </sides>\n    </link>\n";
             }
         }
@@ -527,7 +527,7 @@ namespace aalwines {
             // empty-check
             bool all_empty = true;
             for(const auto& inf : r.interfaces())
-                all_empty &= inf->table().empty();
+                all_empty &= inf.table().empty();
             if(all_empty)
                 continue;
 
@@ -536,11 +536,11 @@ namespace aalwines {
             s << "      <destinations>\n";
 
             // make uniformly sorted output, easier for debugging
-            std::vector<std::pair<std::string,Interface*>> sinfs;
+            std::vector<std::pair<std::string,const Interface*>> sinfs;
             for(auto& inf : r.interfaces())
             {
-                auto fname = r.interface_name(inf->id());
-                sinfs.emplace_back(fname, inf.get());
+                auto fname = r.interface_name(inf.id());
+                sinfs.emplace_back(fname, &inf);
             }
             std::sort(sinfs.begin(), sinfs.end(), [](auto& a, auto& b){
                 return strcmp(a.first.c_str(), b.first.c_str()) < 0;
@@ -606,7 +606,7 @@ namespace aalwines {
                         }
                         if(!handled)
                         {
-                            //assert(rule._via->source() == r.get());
+                            assert(rule._via->source() == &r);
                             auto tname = r.interface_name(rule._via->id());
                             s << "                <route to=\"" << tname << "\">\n";
                             s << "                  <actions>\n";
