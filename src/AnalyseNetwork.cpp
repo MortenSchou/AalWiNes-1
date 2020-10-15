@@ -63,7 +63,7 @@ void search_all_paths(const std::vector<const Interface*>& stack, const std::sta
     for (const auto& entry : stack.back()->match()->table().entries()) {
         if (!entry._top_label.overlaps(label_stack.top())) continue;
         for (const auto& rule : entry._rules) {
-            if (rule._type != RoutingTable::MPLS || rule._priority > 1) continue; // Only use MPLS rules. The other types are undocumented, and I don't know what they do.
+            if (rule._type != RoutingTable::MPLS || rule._priority != 0) continue; // Only use MPLS rules. The other types are undocumented, and I don't know what they do.
             if (rule._via->target()->is_null()) {
                 std::vector<const Interface*> new_stack;
                 new_stack.reserve(stack.size() + 1);
