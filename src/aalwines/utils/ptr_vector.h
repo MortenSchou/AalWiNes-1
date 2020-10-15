@@ -160,6 +160,9 @@ namespace utils {
         // iterator erase(const_iterator pos) { return iterator(_inner.erase(pos.base())); };
         // iterator erase(const_iterator first, const_iterator last) { return iterator(_inner.erase(first.base(), last.base())); }
         // pushback
+        T* move_back(std::unique_ptr<T>&& p) {
+            return _inner.emplace_back(std::move(p)).get();
+        }
         template <typename... Args>
         T* emplace_back(Args&&... args) {
             return _inner.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
@@ -167,6 +170,9 @@ namespace utils {
         // void pop_back() noexcept { _inner.pop_back(); }
         // resize
         void swap(ptr_vector& other) noexcept { _inner.swap(other); }
+
+        inner_t& inner() { return _inner; }
+        const inner_t& inner() const { return _inner; }
     };
 
 }

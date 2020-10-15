@@ -147,19 +147,19 @@ namespace aalwines {
         auto null_router = _mapping["NULL"];
 
         // Move old network into new network.
-        for (auto& e : nested_network._routers) {
-            if (e.is_null()) {
+        for (auto&& e : nested_network._routers.inner()) {
+            if (e->is_null()) {
                 continue;
             }
             // Find unique name for router
-            std::string new_name = e.name();
+            std::string new_name = e->name();
             while(_mapping.exists(new_name).first){
                 new_name += "'";
             }
-            e.change_name(new_name);
+            e->change_name(new_name);
 
             // Add interfaces to _all_interfaces and update their global id.
-            for (auto& inf: e.interfaces()) {
+            for (auto& inf: e->interfaces()) {
                 inf.set_global_id(_all_interfaces.size());
                 _all_interfaces.push_back(&inf);
                 // Transfer links from old NULL router to new NULL router.
@@ -171,8 +171,8 @@ namespace aalwines {
             }
 
             // Move router to new network
-            e.set_index(_routers.size());
-            _mapping[new_name] = _routers.emplace_back(std::move(e));
+            e->set_index(_routers.size());
+            _mapping[new_name] = _routers.move_back(std::move(e));
         }
     }
 
