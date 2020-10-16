@@ -142,7 +142,7 @@ namespace aalwines {
         j["interfaces"] = json::array();
         for (const auto& interface : router.interfaces()) {
             auto j_i = json::object();
-            j_i["name"] = interface->get_name();
+            j_i["name"] = interface.get_name();
             j_i["routing_table"] = json::object(); // Only topology, so empty routing_table in this mode.
             j["interfaces"].push_back(j_i);
         }
@@ -157,9 +157,9 @@ namespace aalwines {
         j["name"] = network.name;
         j["routers"] = json::array();
         for (const auto& router : network.routers()) {
-            if (router->is_null()) continue;
+            if (router.is_null()) continue;
             if (no_routing) {
-                j["routers"].push_back(to_json_no_routing(*router));
+                j["routers"].push_back(to_json_no_routing(router));
             } else {
                 j["routers"].push_back(router);
             }

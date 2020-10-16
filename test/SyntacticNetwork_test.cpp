@@ -525,7 +525,7 @@ BOOST_AUTO_TEST_CASE(FastRerouteWithQueryTest) {
     uint64_t i = 42;
     auto next_label = [&i](){return Query::label_t(Query::type_t::MPLS, 0, i++);};
 
-    std::vector<const Router*> path {network.get_router(0),
+    std::vector<Router*> path {network.get_router(0),
                                      network.get_router(1),
                                      network.get_router(3),
                                      network.get_router(4)};
