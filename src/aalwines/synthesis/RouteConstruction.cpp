@@ -175,10 +175,9 @@ namespace aalwines {
         return true;
     }
 
-    bool RouteConstruction::make_data_flow(Interface* from, Interface* to, const std::function<label_t(void)>& next_label,
-                                           const std::function<uint32_t(const Interface*)>& cost_fn) {
+    std::vector<Interface*> get_path(Interface* from, Interface* to, const std::function<uint32_t(const Interface*)>& cost_fn) {
         if (from->source() == to->source()) {
-            return make_data_flow(from, std::vector<Interface*>{to}, next_label);
+            return std::vector<Interface*>{to};
         }
         std::vector<std::unique_ptr<queue_elem<Interface *, uint32_t>>> pointers;
         auto val = dijkstra(pointers, from->source(),
@@ -195,14 +194,100 @@ namespace aalwines {
                             [](const Interface *interface) { // Don't use the null router.
                                 return interface->target()->is_null();
                             }, cost_fn);
-        if (!val) return false;
+        if (!val) {
+            return std::vector<Interface*>();
+        }
         auto elem = val.value();
         std::vector<Interface*> path{to, elem.edge};
         for (auto p = elem.back_pointer; p != nullptr; p = p->back_pointer) {
             path.push_back(p->edge);
         }
         std::reverse(path.begin(), path.end());
+        return path;
+    }
+
+    bool RouteConstruction::make_data_flow(Interface* from, Interface* to, const std::function<label_t(void)>& next_label,
+                                           const std::function<uint32_t(const Interface*)>& cost_fn) {
+        auto path = get_path(from, to, cost_fn);
+        if (path.empty()) return false;
         return make_data_flow(from, path, next_label);
     }
+
+    bool make_data_flow_service_label(Interface* from, const std::vector<Interface*>& path,
+                                      const std::function<Query::label_t(Query::type_t)>& next_label) {
+        assert(!path.empty());
+        // Check if the interfaces is 'outer' interfaces.
+        assert(from->target()->is_null());
+        assert(path[path.size()-1]->target()->is_null());
+        //auto pre_label = next_label();
+        auto pre_label = next_label(Query::STICKY_MPLS);
+        bool first = true;
+        // Swap labels on hops.
+        for (auto via : path) {
+            if (from->source() != via->source()) return false;
+            if (first){
+                auto swap_label = next_label(Query::MPLS);
+                from->table().add_rule(pre_label, {RoutingTable::op_t::PUSH, swap_label}, via);
+                pre_label = swap_label;
+                from = via->match();
+                first = false;
+            } else if (via == path.back()){
+                from->table().add_rule(pre_label, {RoutingTable::op_t::POP, Query::label_t{}}, via);
+            } else {
+                auto swap_label = next_label(Query::MPLS);
+                from->table().add_rule(pre_label, {RoutingTable::op_t::SWAP, swap_label}, via);
+                from = via->match();
+                pre_label = swap_label;
+            }
+        }
+        return true;
+    }
+    bool make_data_flow_ip(Interface* from, const std::vector<Interface*>& path,
+                           const std::function<Query::label_t(Query::type_t)>& next_label) {
+        assert(!path.empty());
+        // Check if the interfaces is 'outer' interfaces.
+        assert(from->target()->is_null());
+        assert(path[path.size()-1]->target()->is_null());
+        //auto pre_label = next_label();
+        auto pre_label = next_label(Query::ANYIP);
+        bool first = true;
+        // Swap labels on hops.
+        for (auto via : path) {
+            if (from->source() != via->source()) return false;
+            if (first){
+                auto swap_label = next_label(Query::STICKY_MPLS);
+                from->table().add_rule(pre_label, {RoutingTable::op_t::PUSH, swap_label}, via);
+                pre_label = swap_label;
+                from = via->match();
+                first = false;
+            } else if (via == path.back()){
+                from->table().add_rule(pre_label, {RoutingTable::op_t::POP, Query::label_t{}}, via);
+            } else {
+                auto swap_label = next_label(Query::STICKY_MPLS);
+                from->table().add_rule(pre_label, {RoutingTable::op_t::SWAP, swap_label}, via);
+                from = via->match();
+                pre_label = swap_label;
+            }
+        }
+        return true;
+    }
+
+    bool RouteConstruction::make_data_flow(Interface* from, Interface* to, size_t s_paths, size_t i_paths,
+                                           const std::function<Query::label_t(Query::type_t)>& next_label,
+                                           const std::function<uint32_t(const Interface*)>& cost_fn) {
+        auto path = get_path(from, to, cost_fn);
+        if (path.empty()) return false;
+        auto success = true;
+        for (size_t i = 0; i < s_paths; ++i) {
+            auto val = make_data_flow_service_label(from, path, next_label);
+            success = val && success;
+        }
+        for (size_t i = 0; i < i_paths; ++i) {
+            auto val = make_data_flow_ip(from, path, next_label);
+            success = val && success;
+        }
+        return success;
+    }
+
 
 }

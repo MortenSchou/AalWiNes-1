@@ -30,6 +30,9 @@ set_target_properties(aalwines-bin PROPERTIES OUTPUT_NAME aalwines)
 add_executable(analyse-net AnalyseNetwork.cpp)
 target_link_libraries(analyse-net PRIVATE aalwines)
 
+add_executable(generate-routing GenerateRouting.cpp)
+target_link_libraries(generate-routing PRIVATE aalwines)
+
 install(TARGETS aalwines aalwines-bin
 		RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib

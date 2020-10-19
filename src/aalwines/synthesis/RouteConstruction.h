@@ -57,6 +57,10 @@ namespace aalwines {
             });
         }
 
+        static bool make_data_flow(Interface* from, Interface* to, size_t s_paths, size_t i_paths,
+                                   const std::function<label_t(Query::type_t)>& next_label,
+                                   const std::function<uint32_t(const Interface*)>& cost_fn = [](const Interface* interface){return 1;});
+
     };
 }
 
