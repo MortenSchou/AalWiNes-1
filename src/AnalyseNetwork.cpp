@@ -58,7 +58,8 @@ std::stack<Query::label_t> apply_ops(const std::vector<RoutingTable::action_t>& 
     return new_stack;
 }
 
-void search_all_paths(const std::vector<const Interface*>& stack, const std::stack<Query::label_t>& label_stack, std::map<std::vector<const Interface*>, std::pair<size_t,size_t>>& paths, std::map<std::vector<const Router*>, size_t>& router_paths, bool& progress, bool is_service_label) {
+void search_all_paths(const std::vector<const Interface*>& stack, const std::stack<Query::label_t>& label_stack, std::map<std::vector<const Interface*>,
+        std::tuple<std::unordered_set<Query::label_t>,size_t,size_t>>& paths, std::map<std::vector<const Router*>, size_t>& router_paths, bool& progress, bool is_service_label, Query::label_t start_label) {
     if (stack.size() > 50) return; // Break infinite recursion caused by forwarding loops.
     for (const auto& entry : stack.back()->match()->table().entries()) {
         if (!entry._top_label.overlaps(label_stack.top())) continue;
@@ -70,12 +71,14 @@ void search_all_paths(const std::vector<const Interface*>& stack, const std::sta
                 std::copy(stack.begin(), stack.end(), std::back_inserter(new_stack));
                 new_stack.push_back(rule._via);
                 if (is_service_label) {
-                    ++paths[new_stack].first;
+                    auto& [set, num_s, _] = paths[new_stack];
+                    set.emplace(start_label);
+                    ++num_s;
                     if (label_stack.size() != 2) {
                         std::cout << "For service_label: Size of labels stack out: " << label_stack.size() << std::endl;
                     }
                 } else {
-                    ++paths[new_stack].second;
+                    ++std::get<2>(paths[new_stack]);
                 }
                 std::vector<const Router*> router_path;
                 router_path.reserve(stack.size());
@@ -91,7 +94,7 @@ void search_all_paths(const std::vector<const Interface*>& stack, const std::sta
                     new_stack.reserve(stack.size() + 1);
                     std::copy(stack.begin(), stack.end(), std::back_inserter(new_stack));
                     new_stack.push_back(rule._via);
-                    search_all_paths(new_stack, new_label_stack, paths, router_paths, progress, is_service_label);
+                    search_all_paths(new_stack, new_label_stack, paths, router_paths, progress, is_service_label, start_label);
                 }
             }
         }
@@ -100,7 +103,7 @@ void search_all_paths(const std::vector<const Interface*>& stack, const std::sta
 
 
 void analyse_paths(const Network& network) {
-    std::map<std::vector<const Interface*>, std::pair<size_t,size_t>> paths;
+    std::map<std::vector<const Interface*>, std::tuple<std::unordered_set<Query::label_t>,size_t,size_t>> paths;
     std::map<std::vector<const Router*>, size_t> router_paths;
     size_t fails = 0;
     for (const auto& router : network.routers()) {
@@ -115,7 +118,7 @@ void analyse_paths(const Network& network) {
                         is_service_label = true;
                     }
                     label_stack.push(entry._top_label);
-                    search_all_paths(std::vector<const Interface*>{interface->match()}, label_stack, paths, router_paths, progress, is_service_label);
+                    search_all_paths(std::vector<const Interface*>{interface->match()}, label_stack, paths, router_paths, progress, is_service_label, entry._top_label);
                     if (!progress) {
                         ++fails;
                     }
@@ -126,14 +129,23 @@ void analyse_paths(const Network& network) {
 
     // Count occurrences and distinct paths between each pair of interfaces.
     std::unordered_map<std::pair<const Interface*, const Interface*>, std::tuple<size_t,size_t,size_t>, boost::hash<std::pair<const Interface*, const Interface*>>> path_counts;
-    for (const auto& [path, count] : paths) {
+    std::unordered_map<std::pair<const Router*, const Router*>, std::unordered_set<Query::label_t>, boost::hash<std::pair<const Router*, const Router*>>> router_pair_labels;
+    for (auto& [path, info] : paths) {
         if (path.front()->match() != path.back()) {
             auto& [c_service, c_ip, d] = path_counts[std::make_pair(path.front()->match(), path.back())];
-            c_service += count.first;
-            c_ip += count.second;
+            c_service += std::get<1>(info);
+            c_ip += std::get<2>(info);
             ++d;
+            router_pair_labels[std::make_pair(path.front()->target(), path.back()->source())].merge(std::get<0>(info));
         }
     }
+
+    std::cout << "Labelled paths per router pair:" << std::endl;
+    for (const auto& [pair, labels] : router_pair_labels) {
+        std::cout << pair.first->name() << ", " << pair.second->name() << ", " << labels.size() << ", "
+        << std::count_if(labels.begin(), labels.end(), [](const Query::label_t& label){ return !label.overlaps(Query::label_t::any_ip); }) << std::endl;
+    }
+
 
     // Print for each interface pair
     //for (const auto& [pair, counts] : path_counts) {
