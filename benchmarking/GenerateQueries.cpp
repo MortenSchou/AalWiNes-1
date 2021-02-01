@@ -33,6 +33,7 @@
 #include <iostream>
 #include <fstream>
 #include <cctype>
+#include <filesystem>
 
 namespace po = boost::program_options;
 using namespace aalwines;
@@ -56,9 +57,10 @@ int main(int argc, const char** argv) {
             ("limit,n", po::value<size_t>(&permutations), "Specify the number of random permutations to generate of each template query. Default=1. Ignored if -a is set.")
             ;
 
-    std::string output_file;
+    std::string output_file, output_directory;
     output.add_options()
             ("output-file,o", po::value<std::string>(&output_file), "Output file for writing the queries.")
+            ("output-directory,d", po::value<std::string>(&output_directory), "Output directory for writing a file per query.")
             ; // TODO: Add option for generating a file per query in a specifies directory.
 
     opts.add(parser.options());
@@ -76,6 +78,14 @@ int main(int argc, const char** argv) {
 
     if (template_file.empty()) {
         std::cerr << "Please specify template file for generating queries: --template <file-name>" << std::endl;
+        exit(-1);
+    }
+    if (output_file.empty() && output_directory.empty()) {
+        std::cerr << "Please specify either an output file: --output-file <file-name>, or an output directory: --output-directory <directory>" << std::endl;
+        exit(-1);
+    }
+    if (!output_file.empty() && !output_directory.empty()) {
+        std::cerr << "Please only specify one of output file and output directory. Both were specified: --output-file " << output_file << " --output-directory " << output_directory << std::endl;
         exit(-1);
     }
 
@@ -99,22 +109,41 @@ int main(int argc, const char** argv) {
     std::string line;
     while (std::getline(template_stream, line)) {
         if (line.empty() || std::count_if(line.begin(), line.end(), [](unsigned char ch){ return !std::isspace(ch); }) == 0 || line.rfind("//", 0) == 0) continue;
-        query_templates.emplace_back();
+        query_templates.emplace_back(all_permutations, permutations);
         query_templates.back().parse(line);
     }
     template_stream.close();
 
-    std::ofstream output_stream(output_file);
-    if (!output_stream.is_open()) {
-        std::stringstream es;
-        es << "error: Could not open --output-file " << output_file << " for writing" << std::endl;
-        throw base_error(es.str());
-    }
-    if (permutations > 0 || all_permutations) {
+    if (!output_file.empty()) {
+        std::ofstream output_stream(output_file);
+        if (!output_stream.is_open()) {
+            std::stringstream es;
+            es << "error: Could not open --output-file " << output_file << " for writing" << std::endl;
+            throw base_error(es.str());
+        }
         for (const auto& query_template : query_templates) {
-            query_template.generate(output_stream, router_names, all_permutations ? 0 : permutations);
+            query_template.generate(output_stream, router_names);
+        }
+    } else if (!output_directory.empty()) {
+        std::filesystem::create_directory(output_directory);
+        size_t i = 0;
+        for (const auto& query_template : query_templates) {
+            for (const auto& permutation : query_template.get_permutations(router_names)) {
+                std::stringstream file_name;
+                file_name << output_directory << "/" << i << ".q";
+                std::ofstream output_stream(file_name.str());
+                if (!output_stream.is_open()) {
+                    std::stringstream es;
+                    es << "error: Could not open file " << file_name.str() << " for writing" << std::endl;
+                    throw base_error(es.str());
+                }
+                query_template.output_permutation(output_stream, router_names, permutation);
+                ++i;
+            }
         }
     }
+
+
 
 
 }

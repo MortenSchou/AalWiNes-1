@@ -28,7 +28,6 @@
 
 #include <cctype>
 #include <algorithm>
-#include <limits>
 #include <cassert>
 #include <random>
 #include <regex>
@@ -64,14 +63,14 @@ void QueryTemplate::parse(std::string line) {
     add_literal(line);
 }
 
-void QueryTemplate::generate(std::ostream& s, const std::vector<std::string>& names, size_t permutation_limit) const {
+void QueryTemplate::generate(std::ostream& s, const std::vector<std::string>& names) const {
     auto num = std::count_if(_parameters.begin(), _parameters.end(), [](const auto& parameter){ return parameter._type != template_type::equal; });
     std::vector<size_t> current_permutation(num, 0);
     if (num == 0) {
         output_permutation(s, names, current_permutation); // If no template parameters, still print one copy of the query.
         return;
     }
-    if (permutation_limit == 0) { // no limit.
+    if (all_permutations()) {
         do {
             if (valid_permutation(current_permutation)) {
                 output_permutation(s, names, current_permutation);
@@ -86,13 +85,39 @@ void QueryTemplate::generate(std::ostream& s, const std::vector<std::string>& na
         } while (next_permutation(current_permutation, names.size()));
 
         std::vector<std::vector<size_t>> selected_permutations;
-        selected_permutations.reserve(permutation_limit);
-        std::sample(all_permutations.begin(), all_permutations.end(), std::back_inserter(selected_permutations), permutation_limit, std::mt19937{std::random_device{}()});
+        selected_permutations.reserve(_permutation_limit);
+        std::sample(all_permutations.begin(), all_permutations.end(), std::back_inserter(selected_permutations), _permutation_limit, std::mt19937{std::random_device{}()});
         for (const auto& selected : selected_permutations) {
             output_permutation(s, names, selected);
         }
     }
 }
+
+std::vector<std::vector<size_t>> QueryTemplate::get_permutations(const std::vector<std::string>& names) const {
+    auto num = std::count_if(_parameters.begin(), _parameters.end(), [](const auto& parameter){ return parameter._type != template_type::equal; });
+    std::vector<size_t> current_permutation(num, 0);
+    std::vector<std::vector<size_t>> result;
+    if (num == 0) {
+        result.push_back(current_permutation);
+    } else if (all_permutations()) {
+        do {
+            if (valid_permutation(current_permutation)) {
+                result.push_back(current_permutation);
+            }
+        } while (next_permutation(current_permutation, names.size()));
+    } else {
+        std::vector<std::vector<size_t>> all_permutations; // TODO: Can we somehow do this more efficiently? Without computing all permutations. Yeah probably, but do we bother...
+        do {
+            if (valid_permutation(current_permutation)) {
+                all_permutations.push_back(current_permutation);
+            }
+        } while (next_permutation(current_permutation, names.size()));
+        result.reserve(_permutation_limit);
+        std::sample(all_permutations.begin(), all_permutations.end(), std::back_inserter(result), _permutation_limit, std::mt19937{std::random_device{}()});
+    }
+    return result;
+}
+
 
 bool QueryTemplate::valid_permutation(const std::vector<size_t>& permutation) const {
     size_t perm_i = 0;

@@ -30,7 +30,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <limits>
 
 // Implements a simple template based query generator.
 // In the string, template parameters can be specified using "\<number>" (e.g. "\1"). This is a 'normal' parameter,
@@ -46,20 +46,30 @@ class QueryTemplate {
     };
 
 public:
+    QueryTemplate() = default;
+    QueryTemplate(bool all_permutations, size_t permutations)
+    : _permutation_limit(all_permutations ? std::numeric_limits<size_t>::max() : permutations) {};
+
     void parse(std::string line);
 
     // TODO: Add version for one file per query...
-    void generate(std::ostream& s, const std::vector<std::string>& names, size_t permutation_limit = 0) const;
+    void generate(std::ostream& s, const std::vector<std::string>& names) const;
+
+    [[nodiscard]] std::vector<std::vector<size_t>> get_permutations(const std::vector<std::string>& names) const;
+    void output_permutation(std::ostream& s, const std::vector<std::string>& names, const std::vector<size_t>& permutation) const;
 
 private:
     [[nodiscard]] bool valid_permutation(const std::vector<size_t>& permutation) const;
     static bool next_permutation(std::vector<size_t>& permutation, size_t max_value);
-    void output_permutation(std::ostream& s, const std::vector<std::string>& names, const std::vector<size_t>& permutation) const;
     [[nodiscard]] size_t find_normal_permutation_index(unsigned long index) const;
     [[nodiscard]] std::vector<size_t> find_permutation_indexes(unsigned long index) const;
     void add_parameter(template_type type, size_t index);
     void add_literal(const std::string& literal_part);
+    [[nodiscard]] bool all_permutations() const {
+        return _permutation_limit == std::numeric_limits<size_t>::max();
+    }
 
+    size_t _permutation_limit = std::numeric_limits<size_t>::max();
     std::vector<std::string> _literal_parts;
     std::vector<template_parameter> _parameters;
 };
