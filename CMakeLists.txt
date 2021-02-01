@@ -80,3 +80,5 @@ if(BUILD_TESTING AND AALWINES_BuildTests)
     add_test(NAME QueryTest           COMMAND QueryTest)
     add_test(NAME JSONFormatTest      COMMAND JSONFormatTest)
 endif()
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/benchmarking/)
