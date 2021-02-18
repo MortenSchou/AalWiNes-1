@@ -1,2 +1,4 @@
-<.> [.#Stockton] .* [Santa_Clara#.] <.> 0 DUAL
-<.> [.#Chicago] [^.#Los_Angeles]* [Santa_Clara#.] <.> 1 DUAL
+<.> [.#Stockton] .* [Santa_Clara#.] <.> 0 OVER
+<.> [.#Chicago] [^.#Los_Angeles]* [Santa_Clara#.] <.> 1 OVER
+<.> [.#Stockton] .* [Santa_Clara#.] <.> 0 EXACT
+<.> [.#Chicago] [^.#Los_Angeles]* [Santa_Clara#.] <.> 1 EXACT

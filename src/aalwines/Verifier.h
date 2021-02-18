@@ -42,8 +42,14 @@ namespace po = boost::program_options;
 namespace aalwines {
 
     inline void to_json(json & j, const Query::mode_t& mode) {
-        static const char *modeTypes[] {"OVER", "UNDER", "DUAL", "EXACT"};
-        j = modeTypes[mode];
+        switch (mode) {
+            case Query::mode_t::OVER:
+                j = "OVER";
+                break;
+            case Query::mode_t::EXACT:
+                j = "EXACT";
+                break;
+        }
     }
 
     class Verifier {
@@ -101,10 +107,7 @@ namespace aalwines {
             static const char *engineTypes[] {"", "Post*", "Pre*", "CEGAR_Post*", "CEGAR_Post*_SimpleRefinement", "CEGAR_NoAbstraction_Post*"};
             output["engine"] = engineTypes[_engine];
 
-            // DUAL mode means first do OVER-approximation, then if that is inconclusive, do UNDER-approximation
-            std::vector<Query::mode_t> modes = q.approximation() == Query::DUAL ? std::vector<Query::mode_t>{Query::OVER, Query::UNDER} : std::vector<Query::mode_t>{q.approximation()};
             output["mode"] = q.approximation();
-            q.set_approximation(modes[0]);
 
             json json_trace;
             std::vector<unsigned int> trace_weight;
@@ -115,7 +118,9 @@ namespace aalwines {
                 assert(q.number_of_failures() == 0); // k>0 not yet supported for CEGAR.
                 output["no_abstraction"] = json::object();
                 full_time.start();
-                auto res = CegarVerifier::verify<true>(builder._network, q, builder.all_labels(), output["no_abstraction"]);
+                auto res = q.approximation() == Query::mode_t::OVER
+                        ? CegarVerifier::verify<true,Query::mode_t::OVER>(builder._network, q, builder.all_labels(), output["no_abstraction"])
+                        : CegarVerifier::verify<true,Query::mode_t::EXACT>(builder._network, q, builder.all_labels(), output["no_abstraction"]);
                 full_time.stop();
                 if (res) {
                     result = utils::outcome_t::YES;
@@ -127,7 +132,9 @@ namespace aalwines {
                 assert(q.number_of_failures() == 0); // k>0 not yet supported for CEGAR.
                 output["abstraction"] = json::object();
                 full_time.start();
-                auto res = CegarVerifier::verify<false,pdaaal::refinement_option_t::fast_refinement>(builder._network, q, builder.all_labels(), output["abstraction"]);
+                auto res = q.approximation() == Query::mode_t::OVER
+                        ? CegarVerifier::verify<false,Query::mode_t::OVER,pdaaal::refinement_option_t::fast_refinement>(builder._network, q, builder.all_labels(), output["abstraction"])
+                        : CegarVerifier::verify<false,Query::mode_t::EXACT,pdaaal::refinement_option_t::fast_refinement>(builder._network, q, builder.all_labels(), output["abstraction"]);
                 full_time.stop();
                 if (res) {
                     result = utils::outcome_t::YES;
@@ -139,94 +146,24 @@ namespace aalwines {
                 assert(q.number_of_failures() == 0); // k>0 not yet supported for CEGAR.
                 output["abstraction"] = json::object();
                 full_time.start();
-                auto res = CegarVerifier::verify<false,pdaaal::refinement_option_t::best_refinement>(builder._network, q, builder.all_labels(), output["abstraction"]);
+                auto res = q.approximation() == Query::mode_t::OVER
+                           ? CegarVerifier::verify<false,Query::mode_t::OVER,pdaaal::refinement_option_t::best_refinement>(builder._network, q, builder.all_labels(), output["abstraction"])
+                           : CegarVerifier::verify<false,Query::mode_t::EXACT,pdaaal::refinement_option_t::best_refinement>(builder._network, q, builder.all_labels(), output["abstraction"]);
                 full_time.stop();
                 if (res) {
                     result = utils::outcome_t::YES;
                     json_trace = res.value();
                 } else {
-                    result = utils::outcome_t::NO;
+                    result = utils::outcome_t::NO; // TODO: Is this correct, when using OVER???
                 }
             } else {
-                stopwatch compilation_time(false);
-                stopwatch reduction_time(false);
-                stopwatch reachability_time(false);
-                stopwatch trace_making_time(false);
-                full_time.start();
-                for (auto m : modes) {
-                    json_trace = json(); // Clear trace from previous mode.
-
-                    // Construct PDA
-                    compilation_time.start();
-                    q.set_approximation(m);
-                    q.compile_nfas();
-                    NetworkPDAFactory factory(q, builder._network, builder.all_labels(), weight_fn);
-                    auto problem_instance = factory.compile(q.construction(), q.destruction());
-                    compilation_time.stop();
-
-                    // Reduce PDA
-                    reduction_time.start(); // TODO: Implement reduction for solver instance. (Generalised version with multiple initial and final states)
-                    //output["reduction"] = pdaaal::Reducer::reduce(pda, _reduction, pda.initial(), pda.terminal());
-                    reduction_time.stop();
-
-                    // Choose engine, run verification, and (if relevant) get the trace.
-                    reachability_time.start();
-                    bool engine_outcome;
-                    switch (_engine) {
-                        case 1: {
-                            constexpr pdaaal::Trace_Type trace_type = is_weighted ? pdaaal::Trace_Type::Shortest
-                                                                                  : pdaaal::Trace_Type::Any;
-                            engine_outcome = pdaaal::Solver::post_star_accepts<trace_type>(problem_instance);
-                            reachability_time.stop();
-                            trace_making_time.start();
-                            if (engine_outcome) {
-                                std::vector<pdaaal::TypedPDA<Query::label_t>::tracestate_t> pda_trace;
-                                if constexpr (is_weighted) {
-                                    std::tie(pda_trace, trace_weight) = pdaaal::Solver::get_trace<trace_type>(
-                                            problem_instance);
-                                } else {
-                                    pda_trace = pdaaal::Solver::get_trace<trace_type>(problem_instance);
-                                }
-                                json_trace = factory.get_json_trace(pda_trace);
-                                if (!json_trace.is_null()) result = utils::outcome_t::YES;
-                            }
-                            trace_making_time.stop();
-                            break;
-                        }
-                        case 2: {
-                            engine_outcome = pdaaal::Solver::pre_star_accepts(problem_instance);
-                            reachability_time.stop();
-                            trace_making_time.start();
-                            if (engine_outcome) {
-                                auto pda_trace = pdaaal::Solver::get_trace(problem_instance);
-                                json_trace = factory.get_json_trace(pda_trace);
-                                if (!json_trace.is_null()) result = utils::outcome_t::YES;
-                            }
-                            trace_making_time.stop();
-                            break;
-                        }
-                        default:
-                            throw base_error("Unsupported --engine value given");
-                    }
-
-                    // Determine result from the outcome of verification and the mode (over/under-approximation) used.
-                    if (q.number_of_failures() == 0) {
-                        result = engine_outcome ? utils::outcome_t::YES : utils::outcome_t::NO;
-                    }
-                    if (result == utils::outcome_t::MAYBE && m == Query::OVER && !engine_outcome) {
-                        result = utils::outcome_t::NO;
-                    }
-                    if (result != utils::outcome_t::MAYBE) {
-                        output["mode"] = m;
+                switch (q.approximation()) {
+                    case Query::mode_t::OVER:
+                        verify_normal<Query::mode_t::OVER>(builder, q, full_time, output, json_trace, result, trace_weight, print_timing, weight_fn);
                         break;
-                    }
-                }
-                full_time.stop();
-                if (print_timing) {
-                    output["compilation-time"] = compilation_time.duration();
-                    output["reduction-time"] = reduction_time.duration();
-                    output["reachability-time"] = reachability_time.duration();
-                    output["trace-making-time"] = trace_making_time.duration();
+                    case Query::mode_t::EXACT:
+                        verify_normal<Query::mode_t::EXACT>(builder, q, full_time, output, json_trace, result, trace_weight, print_timing, weight_fn);
+                        break;
                 }
             }
 
@@ -243,6 +180,85 @@ namespace aalwines {
             }
 
             return output;
+        }
+    private:
+        template<Query::mode_t mode, typename W_FN = std::function<void(void)>>
+        void verify_normal(Builder& builder, Query& q, stopwatch& full_time, json& output, json& json_trace,utils::outcome_t& result,
+                           std::vector<unsigned int>& trace_weight, bool print_timing, const W_FN& weight_fn = [](){}) {
+            constexpr static bool is_weighted = pdaaal::is_weighted<typename W_FN::result_type>;
+
+            stopwatch compilation_time(false);
+            stopwatch reduction_time(false);
+            stopwatch reachability_time(false);
+            stopwatch trace_making_time(false);
+            full_time.start();
+
+            // Construct PDA
+            compilation_time.start();
+            q.compile_nfas();
+            NetworkPDAFactory<mode,W_FN,typename W_FN::result_type> factory(q, builder._network, builder.all_labels(), weight_fn);
+            auto problem_instance = factory.compile(q.construction(), q.destruction());
+            compilation_time.stop();
+
+            // Reduce PDA
+            reduction_time.start(); // TODO: Implement reduction for solver instance. (Generalised version with multiple initial and final states)
+            //output["reduction"] = pdaaal::Reducer::reduce(pda, _reduction, pda.initial(), pda.terminal());
+            reduction_time.stop();
+
+            // Choose engine, run verification, and (if relevant) get the trace.
+            reachability_time.start();
+            bool engine_outcome;
+            switch (_engine) {
+                case 1: {
+                    constexpr pdaaal::Trace_Type trace_type = is_weighted ? pdaaal::Trace_Type::Shortest
+                                                                          : pdaaal::Trace_Type::Any;
+                    engine_outcome = pdaaal::Solver::post_star_accepts<trace_type>(problem_instance);
+                    reachability_time.stop();
+                    trace_making_time.start();
+                    if (engine_outcome) {
+                        std::vector<pdaaal::TypedPDA<Query::label_t>::tracestate_t> pda_trace;
+                        if constexpr (is_weighted) {
+                            std::tie(pda_trace, trace_weight) = pdaaal::Solver::get_trace<trace_type>(
+                                    problem_instance);
+                        } else {
+                            pda_trace = pdaaal::Solver::get_trace<trace_type>(problem_instance);
+                        }
+                        json_trace = factory.get_json_trace(pda_trace);
+                        if (!json_trace.is_null()) result = utils::outcome_t::YES;
+                    }
+                    trace_making_time.stop();
+                    break;
+                }
+                case 2: {
+                    engine_outcome = pdaaal::Solver::pre_star_accepts(problem_instance);
+                    reachability_time.stop();
+                    trace_making_time.start();
+                    if (engine_outcome) {
+                        auto pda_trace = pdaaal::Solver::get_trace(problem_instance);
+                        json_trace = factory.get_json_trace(pda_trace);
+                        if (!json_trace.is_null()) result = utils::outcome_t::YES;
+                    }
+                    trace_making_time.stop();
+                    break;
+                }
+                default:
+                    throw base_error("Unsupported --engine value given");
+            }
+
+            // Determine result from the outcome of verification and the mode (over/under-approximation) used.
+            if (q.number_of_failures() == 0) {
+                result = engine_outcome ? utils::outcome_t::YES : utils::outcome_t::NO;
+            }
+            if (result == utils::outcome_t::MAYBE && q.approximation() == Query::mode_t::OVER && !engine_outcome) {
+                result = utils::outcome_t::NO;
+            }
+            full_time.stop();
+            if (print_timing) {
+                output["compilation-time"] = compilation_time.duration();
+                output["reduction-time"] = reduction_time.duration();
+                output["reachability-time"] = reachability_time.duration();
+                output["trace-making-time"] = trace_making_time.duration();
+            }
         }
 
     private:

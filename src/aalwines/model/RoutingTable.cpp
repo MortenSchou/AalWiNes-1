@@ -174,6 +174,31 @@ namespace aalwines
     bool RoutingTable::action_t::operator!=(const action_t& other) const {
         return !(*this == other);
     }
+    std::pair<pdaaal::op_t,Query::label_t> RoutingTable::forward_t::first_action() const {
+        if (_ops.empty()) {
+            return std::make_pair(pdaaal::NOOP, Query::label_t());
+        } else {
+            return _ops[0].convert_to_pda_op();
+        }
+    }
+    std::pair<pdaaal::op_t,Query::label_t> RoutingTable::action_t::convert_to_pda_op() const {
+        pdaaal::op_t op;
+        Query::label_t op_label;
+        switch (_op) {
+            case RoutingTable::op_t::POP:
+                op = pdaaal::POP;
+                break;
+            case RoutingTable::op_t::PUSH:
+                op = pdaaal::PUSH;
+                op_label = _op_label;
+                break;
+            case RoutingTable::op_t::SWAP:
+                op = pdaaal::SWAP;
+                op_label = _op_label;
+                break;
+        }
+        return std::make_pair(op, op_label);
+    }
 
     void RoutingTable::action_t::print_json(std::ostream& s, bool quote, bool use_hex, const Network* network) const
     {

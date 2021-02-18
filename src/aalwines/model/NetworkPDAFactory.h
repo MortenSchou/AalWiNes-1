@@ -34,7 +34,7 @@
 
 namespace aalwines {
 
-    template<typename W_FN = std::function<void(void)>, typename W = void>
+    template<Query::mode_t mode, typename W_FN = std::function<void(void)>, typename W = void>
     class NetworkPDAFactory : public pdaaal::PDAFactory<Query::label_t, W> {
         using label_t = Query::label_t;
         using NFA = pdaaal::NFA<label_t>;
@@ -45,8 +45,8 @@ namespace aalwines {
         using rule_t = typename PDAFactory::rule_t;
         using nfa_state_t = NFA::state_t;
     private:
-        using Translation = NetworkTranslationW<W_FN>;
-        using state_t = State;
+        using Translation = NetworkTranslationW<mode, W_FN>;
+        using state_t = State<mode>;
     public:
         NetworkPDAFactory(const Query& query, Network &network, Builder::labelset_t&& all_labels)
         : NetworkPDAFactory(query, network, std::move(all_labels), [](){}) {};
@@ -72,19 +72,18 @@ namespace aalwines {
         bool accepting(size_t i) override { return _states.get_data(i); }
 
         std::vector<rule_t> rules(size_t from_id) override {
-            if (_query.approximation() == Query::EXACT ||
+            /*if (_query.approximation() == Query::EXACT ||
                 _query.approximation() == Query::DUAL) {
                 throw base_error("Exact and Dual analysis method not yet supported");
-            }
-            state_t from_state;
-            _states.unpack(from_id, &from_state);
+            }*/
+            auto from_state = _states.at(from_id);
             std::vector<rule_t> result;
 
             _translation.rules(from_state,
             [from_id,&result,this](state_t&& to_state, const RoutingTable::entry_t& entry, const RoutingTable::forward_t& forward) {
                 rule_t rule;
                 rule._from = from_id;
-                std::tie(rule._op, rule._op_label) = Translation::first_action(forward);
+                std::tie(rule._op, rule._op_label) = forward.first_action();
                 rule._to = add_state(to_state);
                 rule._pre = entry._top_label;
                 if constexpr (is_weighted) {
@@ -158,17 +157,15 @@ namespace aalwines {
 
             for (size_t sno = 0; sno < trace.size(); ++sno) {
                 const auto& step = trace[sno];
-                state_t s;
-                _states.unpack(step._pdastate, &s);
+                auto s = _states.at(step._pdastate);
                 if (!s.ops_done()) continue;
                 if (sno == trace.size() - 1 || step._stack.empty()) continue;
                 // peek at next element, we want to write the ops here
-                state_t next;
-                _states.unpack(trace[sno + 1]._pdastate, &next);
+                auto next = _states.at(trace[sno + 1]._pdastate);
                 if (!next.ops_done()) {
                     // we get the rule we use, print
-                    const auto& entry = next._inf->table()->entries()[next._eid];
-                    const auto& forward = entry._rules[next._rid];
+                    const auto& entry = next.entry();
+                    const auto& forward = next.forward(entry);
                     if (!add_interfaces(disabled, active, entry, forward)) return false;
                     rules.push_back(&forward);
                     entries.push_back(&entry);
@@ -177,24 +174,24 @@ namespace aalwines {
                     // run through the rules and find a match!
                     const auto& next_stack = trace[sno + 1]._stack;
                     bool found = false;
-                    for (const auto& entry : s._inf->table()->entries()) {
+                    for (const auto& entry : s.interface()->table()->entries()) {
                         if (entry._top_label != step._stack.front() && !entry.ignores_label()) continue; // not matching on pre
                         for (const auto& forward : entry._rules) {
                             if (forward._ops.size() > 1 || // would have been handled in other case
-                                forward._via == nullptr || forward._via->match() != next._inf) continue;
+                                forward._via == nullptr || forward._via->match() != next.interface()) continue;
 
                             bool approximation_ok = false;
                             switch (_query.approximation()) {
-                                case Query::UNDER:
+                                /*case Query::UNDER:
                                     assert(next._appmode >= s._appmode);
                                     approximation_ok = forward._priority == (next._appmode - s._appmode);
-                                    break;
-                                case Query::OVER:
+                                    break;*/
+                                case Query::mode_t::OVER:
                                     approximation_ok = forward._priority <= _query.number_of_failures(); // TODO: This OVER-approximation (using _priority) is incorrect.
                                     break;
-                                case Query::DUAL:
-                                    throw base_error("Tracing for DUAL not yet implemented");
-                                case Query::EXACT:
+                                /*case Query::DUAL:
+                                    throw base_error("Tracing for DUAL not yet implemented");*/
+                                case Query::mode_t::EXACT:
                                     throw base_error("Tracing for EXACT not yet implemented");
                             }
                             if (!approximation_ok) continue; // TODO, fix for approximations here!
@@ -239,12 +236,11 @@ namespace aalwines {
             auto result_trace = json::array();
             size_t cnt = 0;
             for (const auto &step : trace) {
-                state_t s;
-                _states.unpack(step._pdastate, &s);
+                auto s = _states.at(step._pdastate);
                 if (s.ops_done()) {
                     Translation::add_link_to_trace(result_trace, s, step._stack);
                     if (cnt < entries.size()) {
-                        _translation.add_rule_to_trace(result_trace, s._inf, *entries[cnt], *rules[cnt]);
+                        _translation.add_rule_to_trace(result_trace, s.interface(), *entries[cnt], *rules[cnt]);
                         ++cnt;
                     }
                 }
@@ -255,12 +251,12 @@ namespace aalwines {
         Translation _translation;
         const Query& _query;
         std::vector<size_t> _initial;
-        ptrie::map<state_t,bool> _states;
+        pdaaal::utils::ptrie_map<state_t,bool> _states;
         const W_FN& _weight_f;
     };
 
-    template<typename W_FN>
-    NetworkPDAFactory(Query& query, Network& network, Builder::labelset_t&& all_labels, const W_FN& weight_f) -> NetworkPDAFactory<W_FN, typename W_FN::result_type>;
+    //template<Query::mode_t mode, typename W_FN>
+    //NetworkPDAFactory(Query& query, Network& network, Builder::labelset_t&& all_labels, const W_FN& weight_f) -> NetworkPDAFactory<mode, W_FN, typename W_FN::result_type>;
 
 }
 

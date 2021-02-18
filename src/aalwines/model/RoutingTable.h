@@ -35,6 +35,7 @@
 #include <ptrie/ptrie_map.h>
 
 #include "Query.h"
+#include <pdaaal/PDA.h>
 
 using json = nlohmann::json;
 
@@ -68,6 +69,7 @@ namespace aalwines {
             [[nodiscard]] json to_json() const;
             bool operator==(const action_t& other) const;
             bool operator!=(const action_t& other) const;
+            std::pair<pdaaal::op_t,label_t> convert_to_pda_op() const;
         };
 
         struct forward_t {
@@ -84,6 +86,7 @@ namespace aalwines {
             bool operator==(const forward_t& other) const;
             bool operator!=(const forward_t& other) const;
             void add_action(action_t action);
+            std::pair<pdaaal::op_t,label_t> first_action() const;
         };
 
         struct entry_t {
