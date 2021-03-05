@@ -27,6 +27,7 @@
 #ifndef AALWINES_NETWORKTRANSLATION_H
 #define AALWINES_NETWORKTRANSLATION_H
 
+#include <aalwines/model/EdgeStatus.h>
 #include <aalwines/model/Query.h>
 #include <aalwines/model/Network.h>
 #include <pdaaal/ptrie_interface.h>
@@ -107,8 +108,7 @@ namespace aalwines {
             std::vector<const Interface*> new_failed;
             for (const auto& other : entry._rules) {
                 if (other._priority < forward._priority) {
-                    new_failed.push_back(
-                            other._via); // Rules with higher priority (smaller numeric value) must fail for this forwarding rule to be applicable.
+                    new_failed.push_back(other._via); // Rules with higher priority (smaller numeric value) must fail for this forwarding rule to be applicable.
                 }
             }
             if (new_failed.empty()) return true;
@@ -117,90 +117,6 @@ namespace aalwines {
             return new_failed.size() <= max_failures;
         }
     } __attribute__((packed)); // packed is needed to make this work fast with ptries
-
-
-    struct EdgeStatus {
-        std::vector<const Interface*> _failed;
-        std::vector<const Interface*> _used;
-
-        // TODO: Optimization, once _failed.size() == max_failures, we no longer need to keep track of _used.
-        EdgeStatus() = default;
-
-        EdgeStatus(std::vector<const Interface*> failed, std::vector<const Interface*> used)
-                : _failed(std::move(failed)), _used(std::move(used)) {};
-
-        bool operator==(const EdgeStatus& other) const {
-            return _failed == other._failed && _used == other._used;
-        }
-
-        bool operator!=(const EdgeStatus& other) const {
-            return !(*this == other);
-        }
-
-        [[nodiscard]] std::optional<EdgeStatus>
-        next_edge_state(const RoutingTable::entry_t& entry, const RoutingTable::forward_t& forward, size_t max_failures) const {
-            assert(std::find(entry._rules.begin(), entry._rules.end(), forward) != entry._rules.end());
-            auto lbf = std::lower_bound(_failed.begin(), _failed.end(), forward._via);
-            if (lbf != _failed.end() && *lbf == forward._via)
-                return std::nullopt; // Cannot use edge that was already assumed to by failed
-
-            std::vector<const Interface*> new_failed;
-            for (const auto& other : entry._rules) {
-                if (other._priority < forward._priority) {
-                    new_failed.push_back(
-                            other._via); // Rules with higher priority (smaller numeric value) must fail for this forwarding rule to be applicable.
-                }
-            }
-            if (new_failed.empty()) { // Speed up special (but common) case.
-                return EdgeStatus(_failed, add_to_set(_used, forward._via));
-            }
-            std::sort(new_failed.begin(), new_failed.end());
-            new_failed.erase(std::unique(new_failed.begin(), new_failed.end()), new_failed.end());
-
-            std::vector<const Interface*> next_failed;
-            std::set_union(new_failed.begin(), new_failed.end(), _failed.begin(), _failed.end(),
-                           std::back_inserter(next_failed));
-            if (new_failed.size() > max_failures) return std::nullopt;
-
-            auto next_used = add_to_set(_used, forward._via);
-            std::vector<const Interface*> intersection;
-            std::set_intersection(new_failed.begin(), new_failed.end(), next_used.begin(), next_used.end(),
-                                  std::back_inserter(intersection));
-            if (!intersection.empty()) return std::nullopt; // Failed and used must be disjoint.
-
-            return EdgeStatus(std::move(next_failed), std::move(next_used));
-        }
-
-        [[nodiscard]] bool soundness_check(size_t max_failures) const {
-            // This checks the soundness of this structure. Can e.g. be used in assert statements in debug mode.
-            if (!std::is_sorted(_failed.begin(), _failed.end()))
-                return false; // Check that data structure is still sorted vector...
-            if (!std::is_sorted(_used.begin(), _used.end())) return false;
-            if (std::adjacent_find(_failed.begin(), _failed.end()) != _failed.end())
-                return false; //... with unique elements. I.e. a set.
-            if (std::adjacent_find(_used.begin(), _used.end()) != _used.end()) return false;
-            if (_failed.size() > max_failures) return false; // Check |F| <= k
-            std::vector<const Interface*> intersection;
-            std::set_intersection(_failed.begin(), _failed.end(), _used.begin(), _used.end(),
-                                  std::back_inserter(intersection));
-            if (!intersection.empty()) return false; // Check F \cap U == \emptyset
-            return true;
-        }
-
-    private:
-        static std::vector<const Interface*> add_to_set(const std::vector<const Interface*>& set, const Interface* elem) {
-            auto lb = std::lower_bound(set.begin(), set.end(), elem);
-            if (lb != set.end() && *lb == elem) { // Elem is already in the set.
-                return set;
-            }
-            std::vector<const Interface*> next_set;
-            next_set.reserve(set.size() + 1);
-            next_set.insert(next_set.end(), set.begin(), lb);
-            next_set.push_back(elem);
-            next_set.insert(next_set.end(), lb, set.end());
-            return next_set;
-        }
-    };
 
     template<>
     struct State<Query::mode_t::EXACT> {
@@ -388,25 +304,7 @@ namespace aalwines {
                         : forward._ops[from_state.opid()]._op_label;
                 add_rule_type_b(state_t::perform_op(from_state, forward), // To-state
                                 pre_label,
-                                forward._ops[from_state._opid + 1].convert_to_pda_op()); // Op, op-label
-            }
-        }
-
-        size_t set_approximation(const State& state, const RoutingTable::forward_t& forward) {
-            if (forward._via->is_virtual()) return state._appmode;
-            auto num_fail = _query.number_of_failures();
-            auto err = std::numeric_limits<size_t>::max();
-            switch (_query.approximation()) {
-                case Query::OVER:
-                    return (forward._priority > num_fail) ? err : 0; // TODO: This is incorrect. Should be size of set of links for forwards with smaller priority on current entry...
-                case Query::UNDER: {
-                    auto nm = state._appmode + forward._priority; // TODO: Also incorrect. Same.
-                    return (nm > num_fail) ? err : nm;
-                }
-                case Query::EXACT:
-                case Query::DUAL:
-                default:
-                    return err;
+                                forward._ops[from_state.opid() + 1].convert_to_pda_op()); // Op, op-label
             }
         }
 

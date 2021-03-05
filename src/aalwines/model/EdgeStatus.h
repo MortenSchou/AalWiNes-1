@@ -32,9 +32,10 @@
 namespace aalwines {
 
     class EdgeStatus {
+    public:
         std::vector<const Interface*> _failed;
         std::vector<const Interface*> _used;
-    public:
+
         // TODO: Optimization, once _failed.size() == max_failures, we no longer need to keep track of _used.
         EdgeStatus() = default;
 
