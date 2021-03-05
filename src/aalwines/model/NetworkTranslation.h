@@ -388,16 +388,34 @@ namespace aalwines {
                         : forward._ops[from_state.opid()]._op_label;
                 add_rule_type_b(state_t::perform_op(from_state, forward), // To-state
                                 pre_label,
-                                forward._ops[from_state.opid() + 1].convert_to_pda_op()); // Op, op-label
+                                forward._ops[from_state._opid + 1].convert_to_pda_op()); // Op, op-label
             }
         }
 
-        static void add_link_to_trace(json& trace, const state_t& state, const std::vector<label_t>& final_header) {
+        size_t set_approximation(const State& state, const RoutingTable::forward_t& forward) {
+            if (forward._via->is_virtual()) return state._appmode;
+            auto num_fail = _query.number_of_failures();
+            auto err = std::numeric_limits<size_t>::max();
+            switch (_query.approximation()) {
+                case Query::OVER:
+                    return (forward._priority > num_fail) ? err : 0; // TODO: This is incorrect. Should be size of set of links for forwards with smaller priority on current entry...
+                case Query::UNDER: {
+                    auto nm = state._appmode + forward._priority; // TODO: Also incorrect. Same.
+                    return (nm > num_fail) ? err : nm;
+                }
+                case Query::EXACT:
+                case Query::DUAL:
+                default:
+                    return err;
+            }
+        }
+
+        static void add_link_to_trace(json& trace, const Interface* inf, const std::vector<label_t>& final_header) {
             trace.emplace_back();
-            trace.back()["from_router"] = state.interface()->target()->name();
-            trace.back()["from_interface"] = state.interface()->match()->get_name();
-            trace.back()["to_router"] = state.interface()->source()->name();
-            trace.back()["to_interface"] = state.interface()->get_name();
+            trace.back()["from_router"] = inf->target()->name();
+            trace.back()["from_interface"] = inf->match()->get_name();
+            trace.back()["to_router"] = inf->source()->name();
+            trace.back()["to_interface"] = inf->get_name();
             trace.back()["stack"] = json::array();
             std::for_each(final_header.rbegin(), final_header.rend(), [&stack=trace.back()["stack"]](const auto& label){
                 if (label == Query::bottom_of_stack()) return;

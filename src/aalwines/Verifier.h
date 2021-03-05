@@ -115,7 +115,6 @@ namespace aalwines {
 
             utils::outcome_t result = utils::outcome_t::MAYBE;
             if (_engine == 5) {
-                assert(q.number_of_failures() == 0); // k>0 not yet supported for CEGAR.
                 output["no_abstraction"] = json::object();
                 full_time.start();
                 auto res = q.approximation() == Query::mode_t::OVER
@@ -129,7 +128,6 @@ namespace aalwines {
                     result = utils::outcome_t::NO;
                 }
             } else if (_engine == 4) {
-                assert(q.number_of_failures() == 0); // k>0 not yet supported for CEGAR.
                 output["abstraction"] = json::object();
                 full_time.start();
                 auto res = q.approximation() == Query::mode_t::OVER
@@ -143,7 +141,6 @@ namespace aalwines {
                     result = utils::outcome_t::NO;
                 }
             } else if (_engine == 3) {
-                assert(q.number_of_failures() == 0); // k>0 not yet supported for CEGAR.
                 output["abstraction"] = json::object();
                 full_time.start();
                 auto res = q.approximation() == Query::mode_t::OVER

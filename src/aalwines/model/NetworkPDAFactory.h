@@ -238,7 +238,7 @@ namespace aalwines {
             for (const auto &step : trace) {
                 auto s = _states.at(step._pdastate);
                 if (s.ops_done()) {
-                    Translation::add_link_to_trace(result_trace, s, step._stack);
+                    Translation::add_link_to_trace(result_trace, s._inf, step._stack);
                     if (cnt < entries.size()) {
                         _translation.add_rule_to_trace(result_trace, s.interface(), *entries[cnt], *rules[cnt]);
                         ++cnt;
