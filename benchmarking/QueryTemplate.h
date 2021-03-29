@@ -42,6 +42,7 @@ class QueryTemplate {
     struct template_parameter {
         template_type _type;
         unsigned long _index;
+        size_t _current_value = 0;
         template_parameter(template_type type, size_t index) : _type(type), _index(index) {};
     };
 
@@ -55,7 +56,7 @@ public:
     // TODO: Add version for one file per query...
     void generate(std::ostream& s, const std::vector<std::string>& names) const;
 
-    [[nodiscard]] std::vector<std::vector<size_t>> get_permutations(const std::vector<std::string>& names) const;
+    [[nodiscard]] std::vector<std::vector<size_t>> get_permutations(const std::vector<std::string>& names);
     void output_permutation(std::ostream& s, const std::vector<std::string>& names, const std::vector<size_t>& permutation) const;
 
 private:

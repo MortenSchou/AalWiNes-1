@@ -93,7 +93,7 @@ void QueryTemplate::generate(std::ostream& s, const std::vector<std::string>& na
     }
 }
 
-std::vector<std::vector<size_t>> QueryTemplate::get_permutations(const std::vector<std::string>& names) const {
+std::vector<std::vector<size_t>> QueryTemplate::get_permutations(const std::vector<std::string>& names) {
     auto num = std::count_if(_parameters.begin(), _parameters.end(), [](const auto& parameter){ return parameter._type != template_type::equal; });
     std::vector<size_t> current_permutation(num, 0);
     std::vector<std::vector<size_t>> result;
@@ -106,14 +106,58 @@ std::vector<std::vector<size_t>> QueryTemplate::get_permutations(const std::vect
             }
         } while (next_permutation(current_permutation, names.size()));
     } else {
-        std::vector<std::vector<size_t>> all_permutations; // TODO: Can we somehow do this more efficiently? Without computing all permutations. Yeah probably, but do we bother...
-        do {
-            if (valid_permutation(current_permutation)) {
-                all_permutations.push_back(current_permutation);
+        bool use_fast = false;
+        {
+            double all_perms = 1;
+            for (auto it = _parameters.begin(); it != _parameters.end(); ++it) {
+                const auto& param = *it;
+                switch (param._type) {
+                    case template_type::not_equal:
+                        all_perms *= (double)(names.size() - std::count_if(_parameters.begin(), it, [&param](const auto& other){
+                            return other._type != template_type::equal && other._index == param._index;
+                        }));
+                        break;
+                    case template_type::normal:
+                        all_perms *= (double)names.size();
+                        break;
+                    case template_type::equal:
+                        break;
+                }
+                if (all_perms > _permutation_limit * 1000.0) { // 1000.0 is just a (somewhat arbitrary) heuristic.
+                    use_fast = true;
+                    break;
+                }
             }
-        } while (next_permutation(current_permutation, names.size()));
-        result.reserve(_permutation_limit);
-        std::sample(all_permutations.begin(), all_permutations.end(), std::back_inserter(result), _permutation_limit, std::mt19937{std::random_device{}()});
+        }
+        std::mt19937 rand{std::random_device{}()};
+        if (use_fast) {
+            std::uniform_int_distribution<size_t> dist(0, names.size()-1);
+            result.reserve(_permutation_limit);
+            for (size_t i = 0; i < _permutation_limit; ++i) {
+                result.emplace_back();
+                for (auto it = _parameters.begin(); it != _parameters.end(); ++it) {
+                    if (it->_type == template_type::equal) continue;
+                    it->_current_value = dist(rand);
+                    if (it->_type == template_type::not_equal) {
+                        while (std::any_of(_parameters.begin(), it, [&it](const auto& other) {
+                            return other._index == it->_index && other._current_value == it->_current_value;
+                        })) {
+                            it->_current_value = dist(rand);
+                        }
+                    }
+                    result.back().emplace_back(it->_current_value);
+                }
+            }
+        } else {
+            std::vector<std::vector<size_t>> all_permutations; // This is slow, but more accurate (avoiding duplicates) if _permutation_limit is close to all permutations.
+            do {
+                if (valid_permutation(current_permutation)) {
+                    all_permutations.push_back(current_permutation);
+                }
+            } while (next_permutation(current_permutation, names.size()));
+            result.reserve(_permutation_limit);
+            std::sample(all_permutations.begin(), all_permutations.end(), std::back_inserter(result), _permutation_limit, rand);
+        }
     }
     return result;
 }

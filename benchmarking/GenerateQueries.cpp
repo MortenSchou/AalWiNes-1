@@ -127,7 +127,7 @@ int main(int argc, const char** argv) {
     } else if (!output_directory.empty()) {
         std::filesystem::create_directory(output_directory);
         size_t i = 0;
-        for (const auto& query_template : query_templates) {
+        for (auto& query_template : query_templates) {
             for (const auto& permutation : query_template.get_permutations(router_names)) {
                 std::stringstream file_name;
                 file_name << output_directory << "/" << i << ".q";
