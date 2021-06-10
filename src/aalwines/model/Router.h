@@ -99,6 +99,8 @@ namespace aalwines {
         RoutingTable* _table = nullptr;
     public:
         uint32_t weight = std::numeric_limits<uint32_t>::max();
+        uint32_t bandwidth = std::numeric_limits<uint32_t>::max();
+        uint32_t latency = std::numeric_limits<uint32_t>::max();
     };
 
     class Router {

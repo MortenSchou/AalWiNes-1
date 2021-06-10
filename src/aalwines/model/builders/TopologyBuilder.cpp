@@ -196,17 +196,119 @@ namespace aalwines {
             if (interface->match() == nullptr) continue; // Not connected
             if (interface->source()->is_null() || interface->target()->is_null()) continue; // Skip the NULL router
             assert(interface->match()->match() == interface);
-            if (interface->global_id() > interface->match()->global_id()) continue; // Already covered by bidirectional link the other way.
+            bool bidirectional = interface->weight == interface->match()->weight && interface->bandwidth == interface->match()->bandwidth && interface->latency == interface->match()->latency;
+            if (interface->global_id() > interface->match()->global_id() && bidirectional) continue; // Already covered by bidirectional link the other way.
 
             auto link_j = json::object();
             link_j["from_interface"] = interface->get_name();
             link_j["from_router"] = interface->source()->name();
             link_j["to_interface"] = interface->match()->get_name();
             link_j["to_router"] = interface->target()->name();
-            link_j["bidirectional"] = true;
+            if (bidirectional) {
+                link_j["bidirectional"] = true;
+            }
+            if (interface->weight != std::numeric_limits<uint32_t>::max()) {
+                link_j["weight"] = interface->weight;
+            }
+            if (interface->bandwidth != std::numeric_limits<uint32_t>::max()) {
+                link_j["bandwidth"] = interface->bandwidth;
+            }
+            if (interface->latency != std::numeric_limits<uint32_t>::max()) {
+                link_j["latency"] = interface->latency;
+            }
             links_j.push_back(link_j);
         }
         j["links"] = links_j;
         return j;
+    }
+
+    std::string parse_to(std::string& s, char delimiter) {
+        auto pos = s.find(delimiter);
+        auto val = s.substr(0,pos);
+        s.erase(0, pos + 1);
+        return val;
+    }
+    std::string parse_to(std::string& s, const std::string& delimiter) {
+        auto pos = s.find(delimiter);
+        auto val = s.substr(0,pos);
+        s.erase(0, pos + delimiter.length());
+        return val;
+    }
+
+    Network TopologyBuilder::parse_aubry_graph(const std::string& input_file, std::ostream& warnings) {
+        std::ifstream stream(input_file);
+        if (!stream.is_open()) {
+            std::stringstream es;
+            es << "error: Could not open file : " << input_file << std::endl;
+            throw base_error(es.str());
+        }
+
+        Network network;
+        auto temp = input_file.substr(input_file.find_last_of('/')+1);
+        network.name = temp.substr(0, temp.find_last_of('.'));
+
+        std::string line;
+        std::getline(stream, line);
+        unsigned long num_nodes = std::stoul(line.substr(line.find(' ')+1));
+
+        std::vector<std::string> names(num_nodes);
+
+        std::getline(stream, line);
+        assert(line == "label x y");
+        for (unsigned long i = 0; i < num_nodes; i++) {
+            std::getline(stream, line);
+            unsigned long id = std::stoul(parse_to(line,'_'));
+            assert(id == i);
+            std::string name = parse_to(line,' ');
+            names[i] = name;
+            double longitude = std::stod(parse_to(line,' '));
+            double latitude = std::stod(line);
+            std::optional<Coordinate> coordinate = (latitude == 0.0 && longitude == 0.0) ? std::nullopt : std::make_optional<Coordinate>(latitude, longitude);
+            auto router = network.add_router(name, coordinate);
+            router->emplace_table();
+        }
+        std::getline(stream, line);
+        assert(line.empty());
+        std::getline(stream, line);
+        unsigned long num_edges = std::stoul(line.substr(line.find(' ')+1));
+        std::getline(stream, line);
+        assert(line == "label src dest weight bw delay");
+        for (unsigned long i = 0; i < num_edges; i++) {
+            std::getline(stream, line);
+            auto e = parse_to(line,'_');
+            assert(e == "edge");
+            unsigned long id = std::stoul(parse_to(line,' '));
+            assert(id == i);
+            auto src_id = std::stoul(parse_to(line,' '));
+            const std::string& src = names.at(src_id);
+            auto src_router = network.find_router(src);
+            assert(src_router != nullptr);
+            auto dest_id = std::stoul(parse_to(line,' '));
+            const std::string& dest = names.at(dest_id);
+            auto dest_router = network.find_router(dest);
+            assert(dest_router != nullptr);
+            uint32_t weight = std::stoul(parse_to(line,' '));
+            uint32_t bw = std::stoul(parse_to(line,' '));
+            uint32_t delay = std::stoul(line);
+
+            auto src_interface = network.add_interface_to(src_router, src_router->tables().back().get());
+            auto dest_interface = network.add_interface_to(dest_router, dest_router->tables().back().get());
+            src_interface->make_pairing(dest_interface);
+            src_interface->weight = weight;
+            src_interface->bandwidth = bw;
+            src_interface->latency = delay;
+            dest_interface->weight = weight;
+            dest_interface->bandwidth = bw;
+            dest_interface->latency = delay;
+
+            i++;
+            std::stringstream expected_next_line;
+            expected_next_line << "edge_" << i << " " << dest_id << " " << src_id << " " << weight << " " << bw << " " << delay;
+            std::getline(stream, line);
+            assert(line == expected_next_line.str());
+        }
+
+        network.add_null_router();
+        return network;
     }
 }

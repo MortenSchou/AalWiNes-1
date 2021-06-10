@@ -39,6 +39,10 @@ namespace aalwines {
         // Parses a network topology in the gml format used by Topology Zoo.
         static Network parse(const std::string& gml, std::ostream& warnings = std::cerr);
 
+        // This is created to convert the topology files from the PhD thesis by Francois Aubry (https://github.com/yunoac/thesis)
+        // into our format. We include both 'weight', 'bandwidth' and 'latency' attributes of the links.
+        static Network parse_aubry_graph(const std::string& input_file, std::ostream& warnings = std::cerr);
+
         // Extracts the topology (assuming all links are bidirectional) from the network into the json format.
         // Note: The standard to_json function uses non-empty routing-tables to determine existence of links (and direction).
         static json json_topology(const aalwines::Network& network, bool no_routing = true);

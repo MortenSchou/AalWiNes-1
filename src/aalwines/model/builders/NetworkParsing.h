@@ -46,6 +46,7 @@ namespace aalwines {
                 ("input", po::value<std::string>(&json_file), "An json-file defining the network in the AalWiNes MPLS Network format. To read from std input specify '--input -'.")
                 ("msgpack", po::bool_switch(&msgpack), "Use the binary MessagePack input format")
                 ("gml", po::value<std::string>(&topo_zoo),"A gml-file defining the topology in the format from topology zoo")
+                ("graph", po::value<std::string>(&graph_file),"A graph-file defining the topology with weights in the format from Aubry's PhD Thesis")
                 ;
         }
 
@@ -54,7 +55,7 @@ namespace aalwines {
         Network parse(bool no_warnings = false);
 
     private:
-        std::string json_file, topo_zoo;
+        std::string json_file, topo_zoo, graph_file;
         bool msgpack = false;
         po::options_description input;
         stopwatch parsing_stopwatch{false};

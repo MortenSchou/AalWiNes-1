@@ -35,8 +35,8 @@ namespace aalwines {
 
     Network NetworkParsing::parse(bool no_warnings) {
 
-        if(!json_file.empty() && !topo_zoo.empty()) {
-            std::cerr << "--input cannot be used with --gml." << std::endl;
+        if((!json_file.empty() && (!topo_zoo.empty() || !graph_file.empty())) || (!topo_zoo.empty() && !graph_file.empty())) {
+            std::cerr << "Specify only one of --input, --gml and --graph." << std::endl;
             exit(-1);
         }
 
@@ -48,9 +48,11 @@ namespace aalwines {
         parsing_stopwatch.start();
         auto network = !topo_zoo.empty()
                      ? TopologyBuilder::parse(topo_zoo, warnings)
-                     : ((json_file.empty() || json_file == "-")
-                        ? FastJsonBuilder::parse(std::cin, warnings, format)
-                        : FastJsonBuilder::parse(json_file, warnings, format));
+                     : (!graph_file.empty()
+                        ? TopologyBuilder::parse_aubry_graph(graph_file, warnings)
+                        : ((json_file.empty() || json_file == "-")
+                           ? FastJsonBuilder::parse(std::cin, warnings, format)
+                           : FastJsonBuilder::parse(json_file, warnings, format)));
         parsing_stopwatch.stop();
 
         assert(network.check_sanity());
