@@ -258,8 +258,22 @@ namespace aalwines {
         for (unsigned long i = 0; i < num_nodes; i++) {
             std::getline(stream, line);
             unsigned long id = std::stoul(parse_to(line,'_'));
-            assert(id == i);
+            //assert(id == i); // Not fulfilled, but i is the correct index.
             std::string name = parse_to(line,' ');
+            if (name == "?") {
+                name = "Unknown";
+            }
+            if (std::find_if(names.begin(), names.end(), // We may have duplicate names, so we find a suffix to make it unique.
+                             [&name](const auto& item){ return item == name; }) != names.end()) {
+                size_t suffix = 2;
+                std::string new_name = name + std::to_string(suffix);
+                while (std::find_if(names.begin(), names.end(),
+                                    [&new_name](const auto& item){ return item == new_name; }) != names.end()) {
+                    suffix++;
+                    new_name = name + std::to_string(suffix);
+                }
+                name = new_name;
+            }
             names[i] = name;
             double longitude = std::stod(parse_to(line,' '));
             double latitude = std::stod(line);
@@ -307,8 +321,6 @@ namespace aalwines {
             std::getline(stream, line);
             assert(line == expected_next_line.str());
         }
-
-        network.add_null_router();
         return network;
     }
 }
