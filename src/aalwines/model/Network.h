@@ -86,6 +86,7 @@ namespace aalwines {
 
         std::pair<bool, Interface*> insert_interface_to(const std::string& interface_name, Router* router, bool make_table = true);
         std::pair<bool, Interface*> insert_interface_to(const std::string& interface_name, const std::string& router_name, bool make_table = true);
+        Interface* add_interface_to(Router* router, RoutingTable* table = nullptr);
         [[nodiscard]] const std::vector<const Interface*>& all_interfaces() const { return _all_interfaces; }
         std::unordered_set<Query::label_t> interfaces(filter_t& filter);
 

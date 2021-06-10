@@ -98,6 +98,15 @@ namespace aalwines {
         auto router = find_router(router_name);
         return router == nullptr ? std::make_pair(false, nullptr) : insert_interface_to(interface_name, router, make_table);
     }
+    Interface* Network::add_interface_to(Router* router, RoutingTable* table) {
+        std::stringstream inf_name;
+        inf_name << "i" << router->interfaces().size();
+        auto interface = router->insert_interface(inf_name.str(), _all_interfaces, table == nullptr).second;
+        if (table != nullptr) {
+            interface->set_table(table);
+        }
+        return interface;
+    }
 
     void Network::add_null_router() {
         bool used = false;
